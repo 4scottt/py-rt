@@ -1,0 +1,37 @@
+# virtualenv and build output
+/.venv/
+/dist/
+/build/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# local secrets and env
+.env
+.env.local
+*.local
+
+# test and tool output
+/.pytest_cache/
+/.mypy_cache/
+/.ruff_cache/
+/coverage.xml
+/htmlcov/
+/node_modules/
+/test-results/
+/playwright-report/
+
+# editors and OS
+.DS_Store
+.idea/
+.vscode/
+
+# working docs: private, kept in another repo and symlinked here
+/docs/PLAN.md
+/docs/HANDOFF.md
+
+# local dev data directory (scripts/dev.sh)
+/.data/
+
+# the walk's local playwright install
+/scripts/.walk/
