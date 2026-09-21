@@ -28,10 +28,11 @@ def routers() -> list[APIRouter]:
     here, and nothing else in this module changes.
     """
     from pyrt.queues import router as queues
+    from pyrt.tickets import router as tickets
     from pyrt.users import router as users
     from pyrt.web import home
 
-    return [home.router, queues.router, users.router]
+    return [home.router, queues.router, users.router, tickets.router]
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -49,6 +50,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     for router in routers():
         app.include_router(router)
+
+    # Mail: the sender MAIL_MODE asks for, and the three notifications on the
+    # tickets' hook seam (register is idempotent: tests build many apps).
+    from pyrt.mail import notify as mail_notify
+    from pyrt.mail import send as mail_send
+    from pyrt.tickets import hooks as ticket_hooks
+
+    mail_send.configure(mail_send.sender_from_settings(settings))
+    mail_notify.register(ticket_hooks)
 
     errors.register(app)
     app.add_middleware(RequestContextMiddleware)

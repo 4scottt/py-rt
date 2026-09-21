@@ -1,0 +1,34 @@
+{#
+  The History titlebox, shared by the ticket page and /ticket/{id}/history
+  (FP T04). The transactions come in oldest first, each already carrying
+  its sentence and its rendered body; a comment the viewer may not read
+  keeps its row and loses its body.
+#}
+{% macro history_box(entries) %}
+<div class="titlebox" id="history">
+  <h2 class="titlebox-title">History</h2>
+  <div class="titlebox-content">
+    <table class="collection">
+      <tbody>
+        {% for entry in entries %}
+        <tr class="transaction {{ entry.type|lower }}">
+          <td class="transaction-when">
+            {{ entry.created.strftime('%Y-%m-%d %H:%M') }}<br>{{ entry.creator }}
+          </td>
+          <td class="transaction-what">
+            <div class="transaction-title">{{ entry.description }}</div>
+            {% if entry.hidden %}
+            <div class="transaction-body hidden">This comment is not shown to you</div>
+            {% elif entry.html %}
+            <div class="transaction-body">{{ entry.html }}</div>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr class="empty"><td colspan="2">Nothing has happened yet</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endmacro %}

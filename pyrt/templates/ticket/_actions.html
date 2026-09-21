@@ -1,0 +1,12 @@
+{#
+  The action links under the title bar (plan §8's Display row): Reply,
+  Comment, Resolve, Basics, History. The update and basics pages are the
+  next package's; these links are already theirs.
+#}
+{% macro action_links(ticket, actions) %}
+<ul class="page-tabs">
+  {% for label, path in actions %}
+  <li><a href="{{ url(path.replace('{id}', ticket.id|string)) }}">{{ label }}</a></li>
+  {% endfor %}
+</ul>
+{% endmacro %}

@@ -1,0 +1,55 @@
+{#
+  The ticket page of plan §11: the title bar, the action links, two columns
+  of titleboxes and the history full width below (FP T03, T12).
+#}
+{% extends "base.html" %}
+{% import "ticket/_boxes.html" as boxes with context %}
+{% import "ticket/_history.html" as history with context %}
+{% import "ticket/_actions.html" as bar with context %}
+
+{% block page_tabs %}{{ bar.action_links(ticket, actions) }}{% endblock %}
+
+{% block content %}
+<div class="two-column">
+  <div class="column">
+    {{ boxes.box('Basics', [
+      ('Id', ticket.id),
+      ('Status', ticket.status),
+      ('Queue', queue.name),
+      ('Owner', owner.name),
+      ('Priority', ticket.priority),
+    ]) }}
+    <div class="titlebox">
+      <h2 class="titlebox-title">People</h2>
+      <div class="titlebox-content">
+        <table class="collection">
+          <tbody>
+            <tr><th>Owner</th><td>{{ boxes.who(owner) }}</td></tr>
+            <tr>
+              <th>Requestors</th>
+              <td>{% for person in requestors %}{{ boxes.who(person) }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="column">
+    {{ boxes.box('Dates', [
+      ('Created', ticket.created.strftime('%Y-%m-%d %H:%M')),
+      ('Last Updated', ticket.last_updated.strftime('%Y-%m-%d %H:%M')),
+      ('Resolved', ticket.resolved.strftime('%Y-%m-%d %H:%M') if ticket.resolved else not_set),
+    ]) }}
+    <div class="titlebox">
+      <h2 class="titlebox-title">Custom Fields</h2>
+      <div class="titlebox-content">
+        {% block custom_fields %}
+        {# M4 fills this: the queue's custom fields with this ticket's values. #}
+        {% endblock %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{{ history.history_box(entries) }}
+{% endblock %}

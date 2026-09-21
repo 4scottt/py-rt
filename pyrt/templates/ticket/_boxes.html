@@ -1,0 +1,23 @@
+{#
+  The ticket page's metadata titleboxes (plan §11): Basics, People, Dates.
+  Custom Fields is a box of its own on the page, because M4 fills it
+  through a template block.
+#}
+{% macro pairs(rows) %}
+<table class="collection">
+  <tbody>
+    {% for label, value in rows %}
+    <tr><th>{{ label }}</th><td>{{ value }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+
+{% macro box(title, rows) %}
+<div class="titlebox">
+  <h2 class="titlebox-title">{{ title }}</h2>
+  <div class="titlebox-content">{{ pairs(rows) }}</div>
+</div>
+{% endmacro %}
+
+{% macro who(user) %}{{ user.name }}{% if user.email and user.email != user.name %} &lt;{{ user.email }}&gt;{% endif %}{% endmacro %}

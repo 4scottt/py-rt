@@ -252,3 +252,11 @@ ul.admin-sections { margin: 0.5rem 1rem; padding-left: 1.2rem; line-height: 1.8;
 p.list-options { margin: 0.5rem 1rem; font-size: 0.92em; }
 form.modify .row.check { display: flex; align-items: center; gap: 0.5rem; }
 form.modify .row.check label { margin: 0; }
+
+/* the ticket page's history (M2): a narrow first column for the time, the
+   sentence, then the message body; a comment the viewer may not read is muted */
+#history table.collection td.transaction-when { white-space: nowrap; width: 11rem; color: var(--muted); }
+#history .transaction-title { font-weight: bold; }
+#history .transaction-body { margin: 0.35rem 0 0; }
+#history .transaction-body p { margin: 0 0 0.5rem; }
+#history .hidden { color: var(--muted); font-style: italic; }

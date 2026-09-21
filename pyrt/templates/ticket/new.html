@@ -1,0 +1,59 @@
+{#
+  The create form of plan §8 (FP T01). The form rules: every control has a
+  name, one form for the action, the submit button carries its own visible
+  label, no label ends in a colon, no name contains "::", and the queue and
+  the owner are selects, never an autocomplete.
+#}
+{% extends "base.html" %}
+
+{% block content %}
+<div class="titlebox">
+  <h2 class="titlebox-title">Ticket metadata</h2>
+  <div class="titlebox-content">
+    <form class="modify" method="post" action="{{ url('/ticket/new') }}">
+      <div class="row">
+        <label for="queue">Queue</label>
+        <select id="queue" name="queue">
+          {% for option in queues %}
+          <option value="{{ option.id }}"{% if option.id == queue.id %} selected{% endif %}>{{ option.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="row">
+        <label for="status">Status</label>
+        <select id="status" name="status">
+          {% for option in statuses %}
+          <option value="{{ option }}"{% if option == form.status %} selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="row">
+        <label for="owner">Owner</label>
+        <select id="owner" name="owner">
+          {% for option in owners %}
+          <option value="{{ option.id }}"{% if option.id == form.owner %} selected{% endif %}>{{ option.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="row">
+        <label for="requestors">Requestors</label>
+        <input type="text" id="requestors" name="requestors" value="{{ form.requestors }}" maxlength="120">
+      </div>
+      <div class="row">
+        <label for="subject">Subject</label>
+        <input type="text" id="subject" name="subject" value="{{ form.subject }}" maxlength="200">
+      </div>
+      <div class="row">
+        <label for="content">Content</label>
+        <textarea id="content" name="content" rows="10">{{ form.content }}</textarea>
+      </div>
+      {% block custom_fields %}
+      {# M4 fills this: the queue's custom fields as rows of this form. #}
+      {% endblock %}
+      <div class="row submit">
+        <button type="submit" name="submit" value="create">{{ button }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

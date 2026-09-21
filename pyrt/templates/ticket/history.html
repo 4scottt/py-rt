@@ -1,0 +1,13 @@
+{#
+  The history alone (plan §8's /ticket/{id}/history, FP T04): the same
+  block the ticket page shows, behind the same gate.
+#}
+{% extends "base.html" %}
+{% import "ticket/_history.html" as history with context %}
+{% import "ticket/_actions.html" as bar with context %}
+
+{% block page_tabs %}{{ bar.action_links(ticket, actions) }}{% endblock %}
+
+{% block content %}
+{{ history.history_box(entries) }}
+{% endblock %}
