@@ -1,22 +1,35 @@
-"""The ASGI application.
+"""The ASGI application: configuration, the routers, the shell, the errors.
 
-M1-foundation keeps this small: configuration, the engine and ``/health``.
-A later package adds the routers, templates, middleware and telemetry.
+This module is the wiring and nothing else. A later package adds one line to
+:func:`routers` and owns its own router module, templates and tests.
 """
 
 from __future__ import annotations
 
 import logging
 
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
-from sqlalchemy import text
+from fastapi import APIRouter, FastAPI
+from starlette.staticfiles import StaticFiles
 
 from pyrt import __version__
 from pyrt.config import Settings, load_settings
 from pyrt.db.engine import make_engine, make_session_factory
+from pyrt.web import errors
+from pyrt.web.deps import RequestContextMiddleware
+from pyrt.web.templating import STATIC_DIR, make_templates
 
 log = logging.getLogger(__name__)
+
+
+def routers() -> list[APIRouter]:
+    """Every router, in the order they are registered.
+
+    The extension point of M1: a package adds its import and its router
+    here, and nothing else in this module changes.
+    """
+    from pyrt.web import home
+
+    return [home.router]
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -29,16 +42,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.engine = engine
     app.state.session_factory = make_session_factory(engine)
+    app.state.templates = make_templates()
 
-    @app.get("/health", include_in_schema=False)
-    def health() -> JSONResponse:
-        """A cheap database ping; no auth, no session, no row written."""
-        try:
-            with engine.connect() as connection:
-                connection.execute(text("SELECT 1"))
-        except Exception as exc:  # the probe never raises, it reports
-            log.warning("health check failed", extra={"error": str(exc)})
-            return JSONResponse({"status": "db unreachable"}, status_code=503)
-        return JSONResponse({"status": "ok"}, status_code=200)
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    for router in routers():
+        app.include_router(router)
 
+    errors.register(app)
+    app.add_middleware(RequestContextMiddleware)
+
+    log.info("app built", extra={"base_url": settings.base_url, "site": settings.site_name})
     return app

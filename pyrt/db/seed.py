@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import logging
 
-import bcrypt
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from pyrt.auth import hash_password, verify_password
 from pyrt.db.models import (
     DEFAULT_QUEUE_NAME,
     NOBODY_USER_NAME,
@@ -33,19 +33,17 @@ from pyrt.db.models import (
 
 log = logging.getLogger(__name__)
 
-BCRYPT_COST = 12
-
-
-def hash_password(password: str) -> str:
-    """A bcrypt hash at cost 12 (RT's default; the login page's ~200 ms)."""
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=BCRYPT_COST)).decode()
-
-
-def verify_password(password: str, password_hash: str | None) -> bool:
-    """True when ``password`` matches; a user without a hash cannot sign in."""
-    if not password_hash:
-        return False
-    return bcrypt.checkpw(password.encode(), password_hash.encode())
+#: The password helpers live in :mod:`pyrt.auth`; they are re-exported here
+#: because the seed is where a password is first written.
+__all__ = [
+    "find_group",
+    "find_queue",
+    "find_user",
+    "hash_password",
+    "seed",
+    "users_exist",
+    "verify_password",
+]
 
 
 def users_exist(session: Session) -> bool:

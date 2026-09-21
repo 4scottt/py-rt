@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% macro ticket_table(rows) %}
+<table class="collection">
+  <thead>
+    <tr><th>Id</th><th>Subject</th><th>Status</th><th>Queue</th><th>Created</th></tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td><a href="{{ url('/ticket/' ~ row.id) }}">{{ row.id }}</a></td>
+      <td><a href="{{ url('/ticket/' ~ row.id) }}">{{ row.subject }}</a></td>
+      <td>{{ row.status }}</td>
+      <td>{{ row.queue_name }}</td>
+      <td>{{ row.created.strftime('%Y-%m-%d %H:%M') }}</td>
+    </tr>
+    {% else %}
+    <tr class="empty"><td colspan="5">No tickets</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+
+{% block content %}
+<div class="two-column">
+  <div class="column">
+    <div class="titlebox">
+      <h2 class="titlebox-title">{{ owned_box }}</h2>
+      <div class="titlebox-content">{{ ticket_table(owned) }}</div>
+    </div>
+  </div>
+  <div class="column">
+    <div class="titlebox">
+      <h2 class="titlebox-title">{{ unowned_box }}</h2>
+      <div class="titlebox-content">{{ ticket_table(unowned) }}</div>
+    </div>
+  </div>
+</div>
+{% endblock %}

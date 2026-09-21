@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="titlebox login">
+  <div class="titlebox-content">
+    <form class="modify" method="post" action="{{ url('/login') }}">
+      <input type="hidden" name="next" value="{{ next }}">
+      <div class="row">
+        <label for="user">Username</label>
+        <input type="text" id="user" name="user" autofocus>
+      </div>
+      <div class="row">
+        <label for="pass">Password</label>
+        <input type="password" id="pass" name="pass">
+      </div>
+      <div class="row submit">
+        <button type="submit" name="submit" value="login">Login</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

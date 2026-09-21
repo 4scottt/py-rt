@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ page_title|default('RT') }}{% endblock %} - RT for {{ site_name }}</title>
+<link rel="stylesheet" href="{{ url('/static/style.css') }}">
+{% block head_extra %}{% endblock %}
+</head>
+<body>
+
+<div id="header">
+  <a id="logo" href="{{ url('/') }}">RT for {{ site_name }}</a>
+  {% if current_user %}
+  <form id="quick-search" method="get" action="{{ url('/search') }}">
+    <label for="q">Search</label>
+    <input type="text" id="q" name="q" value="{{ query|default('') }}" size="20">
+    <button type="submit" name="go" value="search">Search</button>
+  </form>
+  <div id="user">Logged in as {{ current_user.name }} &middot; <a href="{{ url('/logout') }}">Logout</a></div>
+  {% endif %}
+</div>
+
+{% if current_user %}
+<ul id="nav">
+  <li><a href="{{ url('/') }}">Home</a></li>
+  <li><a href="{{ url('/search') }}">Search</a></li>
+  <li class="menu"><span class="menu-label">Tickets</span>
+    <ul class="submenu">
+      <li class="menu"><span class="menu-label">New ticket in</span>
+        <ul class="submenu">
+          {% block nav_queues %}
+          {% for queue in nav_queues %}
+          <li><a href="{{ url('/ticket/new?queue=' ~ queue.id) }}">{{ queue.name }}</a></li>
+          {% endfor %}
+          {% endblock %}
+        </ul>
+      </li>
+      {% block nav_tickets_extra %}{% endblock %}
+    </ul>
+  </li>
+  {% if show_admin %}
+  <li class="menu"><span class="menu-label">Admin</span>
+    <ul class="submenu">
+      <li><a href="{{ url('/admin/queues') }}">Queues</a></li>
+      <li><a href="{{ url('/admin/users') }}">Users</a></li>
+      <li><a href="{{ url('/admin/groups') }}">Groups</a></li>
+      <li><a href="{{ url('/admin/custom-fields') }}">Custom Fields</a></li>
+      {% block nav_admin_extra %}{% endblock %}
+    </ul>
+  </li>
+  {% endif %}
+  {% block nav_extra %}{% endblock %}
+</ul>
+{% endif %}
+
+<div id="page-title">
+  <h1>{% block page_heading %}{{ page_title|default('RT') }}{% endblock %}</h1>
+  {% block page_tabs %}{% endblock %}
+</div>
+
+{% block messages %}
+{% if message %}<div class="message">{{ message }}</div>{% endif %}
+{% endblock %}
+
+<div id="content">
+{% block content %}{% endblock %}
+</div>
+
+<div id="footer">py-rt {{ version }}, a rewrite of Request Tracker's ticket core</div>
+
+{% block body_extra %}{% endblock %}
+</body>
+</html>

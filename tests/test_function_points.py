@@ -32,20 +32,20 @@ TEST_NAME = re.compile(r"^\s*def (test_fp_([lqtsfurmo]\d\d)_\w*)", re.MULTILINE)
 CI_ONLY = frozenset({"O07"})
 WALK_ONLY = frozenset({"O08"})
 
-#: Not yet due. M1-foundation tests O01, Q05 and U04; every other id belongs
-#: to a later package, which removes it from here as it tests it.
+#: Not yet due. M1-foundation tests O01, Q05 and U04; M1-auth-acl-shell the
+#: sign-in, session, shell and resolver ids; every other id belongs to a later
+#: package, which removes it from here as it tests it.
 PENDING = frozenset(
     {
-        "L01", "L02", "L03", "L04", "L05",
         "Q01", "Q02", "Q03", "Q04", "Q06",
         "T01", "T02", "T03", "T04", "T05", "T06", "T07",
         "T08", "T09", "T10", "T11", "T12", "T13", "T14",
         "S01", "S02", "S03", "S04", "S05",
         "F01", "F02", "F03", "F04", "F05", "F06", "F07",
-        "U01", "U02", "U03", "U05", "U06", "U07", "U08",
-        "R01", "R02", "R03", "R04", "R05", "R06", "R07", "R08", "R09",
+        "U01", "U02", "U03", "U05", "U06", "U08",
+        "R03", "R04", "R05", "R06", "R07", "R08", "R09",
         "M01", "M02", "M03", "M04", "M05", "M06", "M07", "M08",
-        "O02", "O03", "O04", "O05", "O06",
+        "O03", "O04",
     }
 )  # fmt: skip
 

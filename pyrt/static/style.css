@@ -1,0 +1,239 @@
+/* py-rt's shell (plan §11).
+ *
+ * Written fresh for this rewrite: a dark header band, blue links, the
+ * titlebox with a bordered heading strip, zebra tables, a 13px system sans
+ * stack, stacked at phone width. Nothing here comes from Request Tracker,
+ * whose own CSS, images and JavaScript are GPL and are not copied.
+ */
+
+:root {
+  --blue: #2a5f9e;
+  --blue-dark: #1d4471;
+  --band: #26303a;
+  --band-text: #f4f6f8;
+  --line: #c8cfd6;
+  --line-soft: #e3e8ed;
+  --zebra: #f5f7f9;
+  --text: #1f2429;
+  --muted: #5a656f;
+  --warn: #8a2b2b;
+  --warn-bg: #fdf0f0;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  color: var(--text);
+  background: #fff;
+  font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+}
+
+a { color: var(--blue); text-decoration: none; }
+a:hover, a:focus { color: var(--blue-dark); text-decoration: underline; }
+
+/* --- header ------------------------------------------------------------ */
+
+#header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  background: var(--band);
+  color: var(--band-text);
+}
+
+#logo {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--band-text);
+  letter-spacing: 0.01em;
+}
+#logo:hover { text-decoration: none; color: #fff; }
+
+#quick-search { display: flex; align-items: center; gap: 0.4rem; margin-left: auto; }
+#quick-search label { color: #cfd6dd; }
+#quick-search input { width: 14rem; }
+
+#user { color: #cfd6dd; }
+#user a { color: #9ec5ef; }
+
+/* --- nav --------------------------------------------------------------- */
+
+#nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0 1rem;
+  list-style: none;
+  background: var(--blue);
+}
+
+#nav > li { position: relative; }
+
+#nav > li > a, #nav .menu-label {
+  display: block;
+  padding: 0.45rem 0.75rem;
+  color: #fff;
+  font-weight: 500;
+  cursor: default;
+}
+#nav > li > a:hover, #nav > li:hover > .menu-label, #nav > li:focus-within > .menu-label {
+  background: var(--blue-dark);
+  text-decoration: none;
+}
+#nav .menu > .menu-label::after { content: " \25B8"; font-size: 0.8em; }
+
+#nav .submenu {
+  display: none;
+  position: absolute;
+  z-index: 10;
+  min-width: 12rem;
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+#nav li:hover > .submenu, #nav li:focus-within > .submenu { display: block; }
+#nav .submenu li { position: relative; }
+#nav .submenu a, #nav .submenu .menu-label {
+  display: block;
+  padding: 0.35rem 0.75rem;
+  color: var(--blue);
+  white-space: nowrap;
+}
+#nav .submenu a:hover { background: var(--zebra); text-decoration: none; }
+#nav .submenu .submenu { top: 0; left: 100%; }
+
+/* --- page -------------------------------------------------------------- */
+
+#page-title {
+  padding: 0.9rem 1rem 0.4rem;
+  border-bottom: 1px solid var(--line-soft);
+}
+#page-title h1 { margin: 0; font-size: 1.5rem; font-weight: 600; }
+
+#content { padding: 1rem; }
+
+.message {
+  margin: 0.75rem 1rem 0;
+  padding: 0.5rem 0.75rem;
+  color: var(--warn);
+  background: var(--warn-bg);
+  border: 1px solid #e7bcbc;
+}
+
+#footer {
+  margin-top: 2rem;
+  padding: 0.75rem 1rem;
+  color: var(--muted);
+  border-top: 1px solid var(--line-soft);
+  font-size: 0.9em;
+}
+
+/* --- titlebox ---------------------------------------------------------- */
+
+.titlebox {
+  margin: 0 0 1rem;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+.titlebox-title {
+  margin: 0;
+  padding: 0.4rem 0.7rem;
+  font-size: 1rem;
+  font-weight: 600;
+  background: var(--zebra);
+  border-bottom: 1px solid var(--line);
+}
+.titlebox-content { padding: 0.7rem; }
+.titlebox-content > :first-child { margin-top: 0; }
+.titlebox-content > :last-child { margin-bottom: 0; }
+.titlebox.login { max-width: 26rem; }
+
+.two-column { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start; }
+.two-column > .column { flex: 1 1 22rem; min-width: 0; }
+
+/* --- tables ------------------------------------------------------------ */
+
+table.collection {
+  width: 100%;
+  border-collapse: collapse;
+}
+table.collection th, table.collection td {
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line-soft);
+}
+table.collection th {
+  font-weight: 600;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+table.collection tbody tr:nth-child(even) { background: var(--zebra); }
+table.collection tr.empty td { color: var(--muted); font-style: italic; }
+
+/* --- forms ------------------------------------------------------------- */
+
+form.modify .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: baseline;
+  margin-bottom: 0.6rem;
+}
+form.modify .row > label { flex: 0 0 11rem; font-weight: 600; }
+form.modify .row > input, form.modify .row > select, form.modify .row > textarea {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+form.modify .row.submit { justify-content: flex-start; }
+form.modify .row.submit > * { flex: 0 0 auto; }
+
+input[type="text"], input[type="password"], input[type="email"], select, textarea {
+  padding: 0.3rem 0.4rem;
+  font: inherit;
+  color: var(--text);
+  background: #fff;
+  border: 1px solid var(--line);
+}
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--blue); outline-offset: 1px; }
+
+button {
+  padding: 0.35rem 0.9rem;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--blue);
+  border: 1px solid var(--blue-dark);
+  cursor: pointer;
+}
+button:hover { background: var(--blue-dark); }
+
+/* --- phone ------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  #header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  #quick-search { margin-left: 0; width: 100%; }
+  #quick-search input { flex: 1 1 auto; width: auto; }
+  #nav { flex-direction: column; padding: 0; }
+  #nav > li { width: 100%; }
+  #nav .submenu {
+    display: block;
+    position: static;
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+    padding: 0 0 0 1rem;
+  }
+  #nav .submenu a, #nav .submenu .menu-label { color: #eaf2fb; }
+  #nav .submenu a:hover { background: transparent; }
+  .two-column { display: block; }
+  form.modify .row > label { flex: 1 1 100%; }
+}
