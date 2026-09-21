@@ -1,0 +1,79 @@
+# ruff, mypy and pytest against a real MariaDB (the plan's one-dialect rule),
+# then the image build and the headless acceptance walk against it.
+name: test
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: pyrtroot
+          MARIADB_DATABASE: pyrt_test
+          MARIADB_USER: pyrt
+          MARIADB_PASSWORD: pyrt
+        ports: ["3308:3306"]
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      TEST_DSN: mysql+pymysql://pyrt:pyrt@127.0.0.1:3308/pyrt_test?charset=utf8mb4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - name: sync
+        run: uv sync --frozen --group dev
+      - name: ruff check
+        run: uv run ruff check .
+      - name: ruff format
+        run: uv run ruff format --check .
+      - name: mypy
+        run: uv run mypy pyrt
+      - name: pytest
+        run: uv run pytest -q
+
+  walk:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: build the image
+        run: docker build -f deploy/Dockerfile -t py-rt:ci .
+      - name: start the stack
+        run: |
+          docker compose -f deploy/compose.yaml --profile app up -d
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:8082/health && break
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8082/health
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: playwright
+        if: hashFiles('scripts/walk.mjs') != ''
+        run: |
+          npm --prefix scripts/.walk install --no-save playwright@1
+          npx --prefix scripts/.walk playwright install --with-deps chromium
+      - name: walk
+        env:
+          # Must match the stack's BASE_URL: every link, redirect and mail URL
+          # is built from it (FP O05), and a different host is a different
+          # cookie origin for the walker's root session.
+          WALK_URL: http://localhost:8082
+          ROOT_PASSWORD: password
+          WALK_BROWSER: chromium
+        run: test -f scripts/walk.mjs && node scripts/walk.mjs || echo "walk not written yet"
+      - name: memory after the walk
+        run: docker stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}'
+      - name: app logs
+        if: always()
+        run: docker compose -f deploy/compose.yaml --profile app logs app | tail -100

@@ -1,0 +1,26 @@
+# The build context is the repository root (deploy/Dockerfile, context .).
+# Only pyproject.toml, uv.lock, README.md and pyrt/ are needed; everything
+# below is either large, local, or a source of spurious cache misses.
+.git
+.github
+.venv
+.data
+.mypy_cache
+.pytest_cache
+.ruff_cache
+**/__pycache__
+**/*.pyc
+.env
+.env.*
+*.local
+docs
+tests
+scripts
+node_modules
+test-results
+playwright-report
+htmlcov
+coverage.xml
+.DS_Store
+.idea
+.vscode

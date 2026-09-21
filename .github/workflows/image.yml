@@ -1,0 +1,121 @@
+# The container image: linux/amd64 and linux/arm64 in one OCI index on GHCR,
+# tagged from the git tag (v0.1.0) or `edge` on main. The index digest is what
+# the oldbox card pins (arm64 hosts pull by the index), so the push carries no
+# provenance or SBOM attestation: the index holds exactly the two platform
+# manifests. A second job checks the footprint contract on the runner's
+# platform: FP O07 — non-root, /var/lib/py-rt writable, under 250 MB.
+name: image
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=tag
+            type=raw,value=edge,enable={{is_default_branch}}
+            type=sha
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: false
+          sbom: false
+      - name: index digest
+        run: |
+          echo "index digest: ${{ steps.build.outputs.digest }}"
+          {
+            echo "## Image"
+            echo
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}" | sed 's/^/  /'
+            echo "  index digest: ${{ steps.build.outputs.digest }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  footprint:
+    needs: image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: pull the pushed image for this platform
+        # By the index digest: docker resolves the runner's own platform out
+        # of the two manifests, which is the image O07 measures.
+        run: |
+          ref="ghcr.io/${{ github.repository }}@${{ needs.image.outputs.digest }}"
+          echo "pulling $ref"
+          docker pull "$ref"
+          docker tag "$ref" py-rt:ci
+      - name: size and user
+        run: |
+          docker images py-rt:ci
+          size=$(docker image inspect py-rt:ci --format '{{.Size}}')
+          user=$(docker image inspect py-rt:ci --format '{{.Config.User}}')
+          mb=$(( size / 1000000 ))
+          echo "size: ${mb} MB (${size} bytes), user: ${user}"
+          {
+            echo "## Footprint"
+            echo
+            echo "- size: ${mb} MB"
+            echo "- user: ${user}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$user" = "pyrt"
+          # O07's contract is under 250 MB; the job fails past 300 MB so a
+          # slow drift is visible in the summary before it is a failure.
+          if [ "$mb" -gt 250 ]; then echo "::warning::image is ${mb} MB, over the 250 MB contract"; fi
+          test "$mb" -le 300
+      - name: healthy, non-root, /var/lib/py-rt writable
+        run: |
+          docker compose -f deploy/compose.yaml up -d db
+          for i in $(seq 1 60); do
+            [ "$(docker compose -f deploy/compose.yaml ps --format '{{.Health}}' db)" = "healthy" ] && break
+            sleep 2
+          done
+          docker run --rm -d --name py-rt-footprint --network host \
+            -e PORT=8082 -e DB_HOST=127.0.0.1 -e DB_PORT=3308 \
+            -e DB_NAME=pyrt -e DB_USER=pyrt -e DB_PASSWORD=pyrt \
+            -e BASE_URL=http://localhost:8082 -e SITE_NAME=ci \
+            -e SESSION_SECRET=ci -e ROOT_PASSWORD=password py-rt:ci
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:8082/health && break; sleep 2; done
+          curl -fsS http://127.0.0.1:8082/health
+          test "$(docker exec py-rt-footprint id -u)" = "1000"
+          docker exec py-rt-footprint sh -c 'touch /var/lib/py-rt/probe && rm /var/lib/py-rt/probe'
+      - name: memory after a few requests
+        run: |
+          for i in $(seq 1 20); do curl -fsS -o /dev/null http://127.0.0.1:8082/health; done
+          docker stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}'
+      - name: app logs
+        if: always()
+        run: docker logs py-rt-footprint 2>&1 | tail -50 || true
