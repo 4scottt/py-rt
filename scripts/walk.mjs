@@ -31,7 +31,7 @@ function loadPlaywright() {
 const { chromium } = loadPlaywright();
 
 const WRITTEN = 12; // the highest step written so far; raise it as milestones land
-const UNWRITTEN = new Set([6, 7, 9, 10, 11]); // steps whose milestone has not landed: skipped
+const UNWRITTEN = new Set([6, 7, 10, 11]); // steps whose milestone has not landed: skipped
 const run = (n) => steps >= n && !UNWRITTEN.has(n);
 const url = (process.env.WALK_URL || "http://localhost:8082").replace(/\/$/, "");
 const rootPassword = process.env.ROOT_PASSWORD || "password";
@@ -41,6 +41,7 @@ const stamp = new Date().toISOString().slice(11, 19).replace(/:/g, "");
 const queue = `Support ${stamp}`;
 const subject = "Printer on the third floor is jammed";
 const tech = `tech1-${stamp}`;
+const group = `Technicians ${stamp}`;
 let ticketUrl = "";
 const problems = [];
 const note = (s) => console.log(`  ${s}`);
@@ -156,7 +157,27 @@ try {
     note(`user ${tech} created, privileged`);
   }
 
-  // 9–11: a group, rights, mail — with M3 and M5
+  // 9. a user-defined group holding that user: Admin › Groups › Create, then
+  //    Members, the user from the select, Add
+  if (run(9)) {
+    console.log("9. create a group and add the user");
+    await page.goto(`${url}/admin/groups`);
+    await expectText(page, "Groups", "the groups list");
+    await page.click('a:has-text("Create")');
+    await expectText(page, "Create a group", "the create form");
+    await page.fill('input[name="name"]', group);
+    await page.click('button:has-text("Create")');
+    await expectText(page, "Group created", "after creating the group");
+    await page.click('a:has-text("Members")');
+    await expectText(page, `Members of ${group}`, "the members page");
+    await page.selectOption('select[name="user"]', { label: tech });
+    await page.click('button:has-text("Add")');
+    await expectText(page, "Member added", "after adding the member");
+    await expectText(page, tech, "the member in the list");
+    note(`group "${group}" holds ${tech}`);
+  }
+
+  // 10–11: rights, mail — with M3 and M5
 
   // 12. resolve the ticket, last in the workload
   if (run(12)) {
