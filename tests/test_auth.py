@@ -114,11 +114,14 @@ def test_fp_l03_session_cookie_flags_tampering_and_logout(
     assert "Max-Age=43200" in cookie  # 12 hours
     assert "Secure" not in cookie  # BASE_URL is http here
 
-    # The value is a signed token, not the id.
+    # The value is a signed token (payload.timestamp.signature), not the id;
+    # a substring check on the base64 payload would be flaky (CI once found
+    # the digit of the id inside it by chance).
     token = client.cookies[auth.SESSION_COOKIE]
     root = db.scalar(select(User).where(User.name == "root"))
     assert root is not None
-    assert str(root.id) not in token.split(".")[0]
+    assert token != str(root.id)
+    assert token.count(".") >= 2
     assert auth.read_session(SETTINGS, token) == root.id
 
     # A tampered cookie is no session at all: the page is the login form again.
