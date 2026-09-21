@@ -30,7 +30,9 @@ function loadPlaywright() {
 }
 const { chromium } = loadPlaywright();
 
-const WRITTEN = 3; // the highest step written so far; raise it as milestones land
+const WRITTEN = 12; // the highest step written so far; raise it as milestones land
+const UNWRITTEN = new Set([6, 7, 8, 9, 10, 11]); // steps whose milestone has not landed: skipped
+const run = (n) => steps >= n && !UNWRITTEN.has(n);
 const url = (process.env.WALK_URL || "http://localhost:8082").replace(/\/$/, "");
 const rootPassword = process.env.ROOT_PASSWORD || "password";
 const steps = Math.min(Number(process.env.WALK_STEPS || WRITTEN), WRITTEN);
@@ -73,7 +75,7 @@ try {
   note("RT at a glance");
 
   // 2. a queue: Admin › Queues › Create, the name, the defaults otherwise
-  if (steps >= 2) {
+  if (run(2)) {
     console.log("2. create a queue");
     await page.goto(`${url}/admin/queues`);
     await expectText(page, "Queues", "the queues list");
@@ -90,7 +92,7 @@ try {
 
   // 3. a ticket in that queue: Tickets › New ticket in › the queue; the
   //    goal's subject and a sentence of description
-  if (steps >= 3) {
+  if (run(3)) {
     console.log("3. create a ticket");
     await page.goto(`${url}/`);
     // the menus open on hover, as a person opens them: Tickets, then New ticket in
@@ -107,8 +109,49 @@ try {
     note(`ticket created at ${ticketUrl}`);
   }
 
+  // 4. reply: Reply, not Comment; one sentence
+  if (run(4)) {
+    console.log("4. reply");
+    await page.goto(ticketUrl);
+    await page.click('a:has-text("Reply")');
+    await expectText(page, "Update ticket #", "the update page");
+    await page.check('input[name="UpdateType"][value="respond"]');
+    await page.fill('textarea[name="content"]', "A technician is on the way to the third floor.");
+    await page.click('button:has-text("Update Ticket")');
+    await expectText(page, "Correspondence added", "the reply in the history");
+    note("reply recorded");
+  }
+
+  // 5. comment: Comment, not Reply
+  if (run(5)) {
+    console.log("5. comment");
+    await page.goto(ticketUrl);
+    await page.click('a:has-text("Comment")');
+    await expectText(page, "Update ticket #", "the update page");
+    await page.check('input[name="UpdateType"][value="comment"]');
+    await page.fill('textarea[name="content"]', "The printer model is unknown; ask the floor manager.");
+    await page.click('button:has-text("Update Ticket")');
+    await expectText(page, "Comment added", "the comment in the history");
+    note("comment recorded");
+  }
+
+  // 6–11: search, a custom field, a user, a group, rights, mail — with M3 to M5
+
+  // 12. resolve the ticket, last in the workload
+  if (run(12)) {
+    console.log("12. resolve");
+    await page.goto(ticketUrl);
+    await page.click('a:has-text("Resolve")');
+    await expectText(page, "Update ticket #", "the update page");
+    const status = await page.inputValue('select[name="status"]');
+    if (status !== "resolved") throw new Error(`resolve: the status select reads ${status}, not resolved`);
+    await page.click('button:has-text("Update Ticket")');
+    await expectText(page, "Status changed from open to resolved", "the status transaction in the history");
+    note("resolved");
+  }
+
   // last. logout: the home page shows the login form again
-  console.log(`${WRITTEN + 1}. logout`);
+  console.log("13. logout");
   await page.goto(`${url}/logout`);
   await page.waitForSelector('input[name="user"]', { timeout: 30_000 });
   note("signed out");
