@@ -1,0 +1,61 @@
+# Local dev and test stack. `docker compose -f deploy/compose.yaml up -d db`
+# brings up MariaDB alone (the default); the `app` profile builds and runs the
+# image as the oldbox card will. The sidecar's args are the card's, so the
+# local database behaves like the hosted one.
+#
+# The project is named, not derived from the directory: every one of these
+# repositories has a `deploy/` directory, and the default name would collide
+# with another project's containers and volumes.
+name: py-rt
+
+services:
+  db:
+    image: mariadb:10.11
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --innodb-buffer-pool-size=64M
+    environment:
+      MARIADB_ROOT_PASSWORD: pyrtroot
+      MARIADB_DATABASE: pyrt
+      MARIADB_USER: pyrt
+      MARIADB_PASSWORD: pyrt
+    ports:
+      # 3306 and 3307 belong to other projects on this machine.
+      - "127.0.0.1:3308:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - db-data:/var/lib/mysql
+      # The suite truncates every table before each test, so it gets a
+      # database of its own beside the dev one (go-blogcfc's lesson).
+      - ./initdb-test.sql:/docker-entrypoint-initdb.d/10-test-database.sql:ro
+
+  app:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    environment:
+      PORT: "8080"
+      BASE_URL: "http://localhost:8082"
+      SITE_NAME: localhost
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: pyrt
+      DB_USER: pyrt
+      DB_PASSWORD: pyrt
+      ROOT_PASSWORD: password
+      SESSION_SECRET: devsecret
+      TZ: UTC
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8082:8080"
+
+volumes:
+  db-data:
