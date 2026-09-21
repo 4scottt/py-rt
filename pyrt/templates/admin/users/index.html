@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% from "admin/users/_tabs.html" import tabs %}
+
+{% block page_tabs %}{{ tabs('select', url) }}{% endblock %}
+
+{% block content %}
+<table class="collection">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Real Name</th>
+      <th>Email</th>
+      <th>Privileged</th>
+      <th>Enabled</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in users %}
+    <tr>
+      <td><a href="{{ url('/admin/users/' ~ row.id) }}">{{ row.name }}</a></td>
+      <td>{{ row.real_name }}</td>
+      <td>{{ row.email or '' }}</td>
+      <td>{{ 'yes' if row.privileged else 'no' }}</td>
+      <td>{{ 'no' if row.disabled else 'yes' }}</td>
+    </tr>
+    {% else %}
+    <tr class="empty"><td colspan="5">No users</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p class="list-options">
+  {% if include_disabled %}
+  <a href="{{ url('/admin/users') }}">Hide disabled users</a>
+  {% else %}
+  <a href="{{ url('/admin/users?disabled=1') }}">Include disabled users</a>
+  {% endif %}
+</p>
+{% endblock %}

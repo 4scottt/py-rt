@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block page_tabs %}
+<ul class="page-tabs">
+  <li class="current"><a href="{{ url('/admin/queues') }}">Select</a></li>
+  <li><a href="{{ url('/admin/queues/new') }}">Create</a></li>
+</ul>
+{% endblock %}
+
+{% block content %}
+<table class="collection">
+  <thead>
+    <tr><th>Name</th><th>Description</th><th>Enabled</th></tr>
+  </thead>
+  <tbody>
+    {% for queue in queues %}
+    <tr>
+      <td><a href="{{ url('/admin/queues/' ~ queue.id) }}">{{ queue.name }}</a></td>
+      <td>{{ queue.description }}</td>
+      <td>{{ 'No' if queue.disabled else 'Yes' }}</td>
+    </tr>
+    {% else %}
+    <tr class="empty"><td colspan="3">No queues</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p class="list-options">
+  {% if include_disabled %}
+  <a href="{{ url('/admin/queues') }}">Hide disabled queues</a>
+  {% else %}
+  <a href="{{ url('/admin/queues?disabled=1') }}">Include disabled queues</a>
+  {% endif %}
+</p>
+{% endblock %}

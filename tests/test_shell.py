@@ -178,8 +178,8 @@ def test_fp_l04_a_private_path_needs_a_session_and_comes_back_to_it(
     assert back.status_code == 303
     assert back.headers["location"] == "/admin/queues"
 
-    # A signed-in request is no longer redirected (this one is simply not built yet).
-    assert client.get("/admin/queues", follow_redirects=False).status_code == 404
+    # A signed-in request is no longer redirected: root reaches the page.
+    assert client.get("/admin/queues", follow_redirects=False).status_code == 200
 
 
 def test_fp_l04_an_offsite_next_is_not_followed(client: TestClient) -> None:

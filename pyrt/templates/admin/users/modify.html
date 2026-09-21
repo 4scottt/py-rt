@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "admin/users/_tabs.html" import tabs %}
+
+{% block page_heading %}{{ page_title }}{% if user %} {{ user.name }}{% endif %}{% endblock %}
+
+{% block page_tabs %}{{ tabs('create' if not user else '', url) }}{% endblock %}
+
+{% block content %}
+<div class="titlebox">
+  <h2 class="titlebox-title">Basics</h2>
+  <div class="titlebox-content">
+    <form class="modify" method="post" action="{{ url(action) }}">
+      <div class="row">
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" value="{{ form.name }}">
+      </div>
+      <div class="row">
+        <label for="email">Email</label>
+        <input type="text" id="email" name="email" value="{{ form.email }}">
+      </div>
+      <div class="row">
+        <label for="real_name">Real Name</label>
+        <input type="text" id="real_name" name="real_name" value="{{ form.real_name }}">
+      </div>
+      <div class="row">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" value="">
+      </div>
+      <div class="row check">
+        <input type="checkbox" id="privileged" name="privileged" value="1"{% if form.privileged %} checked{% endif %}>
+        <label for="privileged">Let this user be granted rights (Privileged)</label>
+      </div>
+      <div class="row check">
+        <input type="checkbox" id="enabled" name="enabled" value="1"{% if form.enabled %} checked{% endif %}>
+        <label for="enabled">Enabled</label>
+      </div>
+      <div class="row submit">
+        <button type="submit" name="submit" value="save">{{ button }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

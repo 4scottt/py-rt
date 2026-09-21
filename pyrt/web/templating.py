@@ -17,7 +17,8 @@ from starlette.templating import _TemplateResponse
 from pyrt import __version__
 from pyrt.acl import has_right, principals
 from pyrt.config import Settings
-from pyrt.db.models import User
+from pyrt.db.models import Queue, User
+from pyrt.queues.service import queues_for_create
 
 PACKAGE_ROOT: Final = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR: Final = PACKAGE_ROOT / "templates"
@@ -39,8 +40,9 @@ def absolute_url(settings: Settings, path: str) -> str:
 def shell_context(request: Request) -> dict[str, Any]:
     """What every template gets: the user, the shell's labels, the menus.
 
-    ``nav_queues`` is empty here; the package that owns queues fills it (the
-    "New ticket in" submenu of plan §11).
+    ``nav_queues`` is the "New ticket in" submenu of plan §11: the enabled
+    queues the user may create a ticket in (every lookup is memoised on the
+    request, so the menu costs the principal set and one right query).
     """
     settings: Settings = request.app.state.settings
     user: User | None = getattr(request.state, "user", None)
@@ -50,9 +52,19 @@ def shell_context(request: Request) -> dict[str, Any]:
         "version": __version__,
         "current_user": user,
         "show_admin": _may_see_admin(request, user),
-        "nav_queues": [],
+        "nav_queues": _nav_queues(request, user),
         "url": lambda path: absolute_url(settings, path),
     }
+
+
+def _nav_queues(request: Request, user: User | None) -> list[Queue]:
+    """The queues of the "New ticket in" submenu, none for a signed-out page."""
+    if user is None:
+        return []
+    db = getattr(request.state, "db", None)
+    if db is None:
+        return []
+    return queues_for_create(db, principals(db, user, request), request)
 
 
 def _may_see_admin(request: Request, user: User | None) -> bool:

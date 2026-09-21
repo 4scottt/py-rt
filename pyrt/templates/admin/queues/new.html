@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% import "admin/queues/_form.html" as form with context %}
+
+{% block page_tabs %}
+<ul class="page-tabs">
+  <li><a href="{{ url('/admin/queues') }}">Select</a></li>
+  <li class="current"><a href="{{ url('/admin/queues/new') }}">Create</a></li>
+</ul>
+{% endblock %}
+
+{% block content %}
+<div class="titlebox">
+  <h2 class="titlebox-title">Basics</h2>
+  <div class="titlebox-content">
+    {{ form.basics('/admin/queues/new', fields, button) }}
+  </div>
+</div>
+{% endblock %}

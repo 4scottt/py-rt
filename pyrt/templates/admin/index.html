@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="titlebox">
+  <h2 class="titlebox-title">Configuration</h2>
+  <div class="titlebox-content">
+    <ul class="admin-sections">
+      {% for label, path in sections %}
+      <li><a href="{{ url(path) }}">{{ label }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

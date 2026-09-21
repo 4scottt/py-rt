@@ -18,6 +18,8 @@
   --muted: #5a656f;
   --warn: #8a2b2b;
   --warn-bg: #fdf0f0;
+  --ok: #1f5e2a;
+  --ok-bg: #eef7ef;
 }
 
 * { box-sizing: border-box; }
@@ -237,3 +239,16 @@ button:hover { background: var(--blue-dark); }
   .two-column { display: block; }
   form.modify .row > label { flex: 1 1 100%; }
 }
+
+/* the admin pages (M1): a list with its Create tab, a modify page with its
+   sub-tabs as links to pages, the list's options line, a checkbox row */
+.message.ok { color: var(--ok); background: var(--ok-bg); }
+ul.page-tabs { list-style: none; margin: 0 1rem 0.75rem; padding: 0; display: flex; gap: 0.25rem; border-bottom: 1px solid var(--line); }
+ul.page-tabs li { margin: 0; }
+ul.page-tabs a { display: block; padding: 0.35rem 0.9rem; border: 1px solid var(--line); border-bottom: none; border-radius: 4px 4px 0 0; background: #f4f2ea; text-decoration: none; }
+ul.page-tabs li.current a { background: #fff; font-weight: bold; }
+.page-subtitle { margin: -0.5rem 1rem 0.75rem; color: #555; font-size: 1.05em; }
+ul.admin-sections { margin: 0.5rem 1rem; padding-left: 1.2rem; line-height: 1.8; }
+p.list-options { margin: 0.5rem 1rem; font-size: 0.92em; }
+form.modify .row.check { display: flex; align-items: center; gap: 0.5rem; }
+form.modify .row.check label { margin: 0; }

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% import "admin/queues/_form.html" as form with context %}
+
+{% block page_tabs %}
+<div class="page-subtitle">{{ queue.name }}</div>
+<ul class="page-tabs">
+  <li class="current"><a href="{{ url('/admin/queues/' ~ queue.id) }}">Basics</a></li>
+  <li><a href="{{ url('/admin/queues/' ~ queue.id ~ '/group-rights') }}">Group Rights</a></li>
+  <li><a href="{{ url('/admin/queues/' ~ queue.id ~ '/user-rights') }}">User Rights</a></li>
+  <li><a href="{{ url('/admin/queues/' ~ queue.id ~ '/custom-fields') }}">Custom Fields</a></li>
+</ul>
+{% endblock %}
+
+{% block content %}
+<div class="titlebox">
+  <h2 class="titlebox-title">Basics</h2>
+  <div class="titlebox-content">
+    {{ form.basics('/admin/queues/' ~ queue.id, fields, button) }}
+  </div>
+</div>
+{% endblock %}

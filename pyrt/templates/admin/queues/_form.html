@@ -1,0 +1,38 @@
+{#
+  The Basics form of plan §8, one template for Create and Modify.
+
+  The form rules: every control has a name, one form per action, the submit
+  button carries its own visible label, the checkbox's label follows its
+  input, and no label ends in a colon.
+#}
+{% macro basics(action, fields, button) %}
+<form class="modify" method="post" action="{{ url(action) }}">
+  <div class="row">
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" value="{{ fields.name }}" maxlength="200">
+  </div>
+  <div class="row">
+    <label for="description">Description</label>
+    <input type="text" id="description" name="description" value="{{ fields.description }}" maxlength="255">
+  </div>
+  <div class="row">
+    <label for="subject_tag">Subject Tag</label>
+    <input type="text" id="subject_tag" name="subject_tag" value="{{ fields.subject_tag }}" maxlength="120">
+  </div>
+  <div class="row">
+    <label for="correspond_address">Reply Address</label>
+    <input type="text" id="correspond_address" name="correspond_address" value="{{ fields.correspond_address }}" maxlength="120">
+  </div>
+  <div class="row">
+    <label for="comment_address">Comment Address</label>
+    <input type="text" id="comment_address" name="comment_address" value="{{ fields.comment_address }}" maxlength="120">
+  </div>
+  <div class="row check">
+    <input type="checkbox" id="enabled" name="enabled" value="1"{% if fields.enabled %} checked{% endif %}>
+    <label for="enabled">Enabled</label>
+  </div>
+  <div class="row submit">
+    <button type="submit" name="submit" value="save">{{ button }}</button>
+  </div>
+</form>
+{% endmacro %}

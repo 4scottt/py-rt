@@ -61,7 +61,7 @@
 </div>
 
 {% block messages %}
-{% if message %}<div class="message">{{ message }}</div>{% endif %}
+{% if message %}<div class="message{% if message_ok %} ok{% endif %}">{{ message }}</div>{% endif %}
 {% endblock %}
 
 <div id="content">

@@ -1,0 +1,10 @@
+{# The Select / Create tabs of plan §8: links to pages, never panes.
+
+   A macro, so the tabs carry the shell's `url` explicitly: an imported
+   template does not inherit the context processor's globals. #}
+{% macro tabs(current, url) %}
+<ul class="page-tabs">
+  <li{% if current == 'select' %} class="current"{% endif %}><a href="{{ url('/admin/users') }}">Select</a></li>
+  <li{% if current == 'create' %} class="current"{% endif %}><a href="{{ url('/admin/users/new') }}">Create</a></li>
+</ul>
+{% endmacro %}
