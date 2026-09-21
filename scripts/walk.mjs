@@ -31,7 +31,7 @@ function loadPlaywright() {
 const { chromium } = loadPlaywright();
 
 const WRITTEN = 12; // the highest step written so far; raise it as milestones land
-const UNWRITTEN = new Set([6, 7, 8, 9, 10, 11]); // steps whose milestone has not landed: skipped
+const UNWRITTEN = new Set([6, 7, 9, 10, 11]); // steps whose milestone has not landed: skipped
 const run = (n) => steps >= n && !UNWRITTEN.has(n);
 const url = (process.env.WALK_URL || "http://localhost:8082").replace(/\/$/, "");
 const rootPassword = process.env.ROOT_PASSWORD || "password";
@@ -40,6 +40,7 @@ const headed = process.env.WALK_HEADED === "1";
 const stamp = new Date().toISOString().slice(11, 19).replace(/:/g, "");
 const queue = `Support ${stamp}`;
 const subject = "Printer on the third floor is jammed";
+const tech = `tech1-${stamp}`;
 let ticketUrl = "";
 const problems = [];
 const note = (s) => console.log(`  ${s}`);
@@ -135,7 +136,27 @@ try {
     note("comment recorded");
   }
 
-  // 6–11: search, a custom field, a user, a group, rights, mail — with M3 to M5
+  // 6–7: search, a custom field — with M4
+
+  // 8. a privileged user: Admin › Users › Create; the name, the real name,
+  //    the email, the password left blank, privileged
+  if (run(8)) {
+    console.log("8. create a user");
+    await page.goto(`${url}/admin/users`);
+    await expectText(page, "Users", "the users list");
+    await page.click('a:has-text("Create")');
+    await expectText(page, "Create a user", "the create form");
+    await page.fill('input[name="name"]', tech);
+    await page.fill('input[name="real_name"]', "Terry Technician");
+    await page.fill('input[name="email"]', `${tech}@example.com`);
+    await page.check('input[name="privileged"]');
+    await page.click('button:has-text("Create")');
+    await expectText(page, "Modify a user", "after creating the user");
+    await expectText(page, "User created", "the created message");
+    note(`user ${tech} created, privileged`);
+  }
+
+  // 9–11: a group, rights, mail — with M3 and M5
 
   // 12. resolve the ticket, last in the workload
   if (run(12)) {
