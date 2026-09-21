@@ -1,9 +1,11 @@
-"""The ticket screens: create, display, history (plan §8, §11).
+"""The ticket screens: create, display, history, update, basics (plan §8, §11).
 
-Three routes and one POST. The gates are plan §8's: ``CreateTicket`` on the
-chosen queue to create, ``ShowTicket`` on the ticket's queue to read it —
-checked against the ticket's own principal set, so a grant to the Owner or
-the Requestor role reaches the person it was meant for.
+The gates are plan §8's and FP R06's: ``CreateTicket`` on the chosen queue to
+create, ``ShowTicket`` on the ticket's queue to read it,
+``ReplyToTicket``/``CommentOnTicket`` for the update page's radio, and
+``ModifyTicket`` for basics and for any status change — each checked against
+the ticket's own principal set, so a grant to the Owner or the Requestor role
+reaches the person it was meant for.
 """
 
 from __future__ import annotations
@@ -13,11 +15,12 @@ from typing import Annotated, Final
 from fastapi import APIRouter, Form, HTTPException, Query, Request
 from starlette.responses import RedirectResponse, Response
 
-from pyrt.acl import Forbidden, has_right, ticket_principals
+from pyrt.acl import Forbidden, Principals, has_right, ticket_principals
 from pyrt.db.models import Queue
 from pyrt.queues.service import get_queue, queues_for_create
-from pyrt.tickets import service
+from pyrt.tickets import lifecycle, service, update
 from pyrt.tickets.service import TicketForm
+from pyrt.tickets.update import BasicsForm, UpdateForm
 from pyrt.web.deps import ActorPrincipals, Config, Db, SignedIn
 from pyrt.web.errors import SEE_OTHER
 from pyrt.web.templating import absolute_url, render
@@ -27,10 +30,13 @@ router = APIRouter()
 #: Plan §8's headings and buttons, kept verbatim: the walk expects them.
 CREATE_HEADING: Final = "Create a ticket"
 HISTORY_HEADING: Final = "History"
+UPDATE_HEADING: Final = "Update"
+BASICS_HEADING: Final = "Basics"
 CREATE_BUTTON: Final = "Create"
+UPDATE_BUTTON: Final = "Update Ticket"
+SAVE_BUTTON: Final = "Save Changes"
 
-#: The action links under the title bar (plan §8's Display row). The update
-#: and basics pages are the next package's; the links are theirs already.
+#: The action links under the title bar (plan §8's Display row).
 ACTIONS: Final[tuple[tuple[str, str], ...]] = (
     ("Reply", "/ticket/{id}/update?action=respond"),
     ("Comment", "/ticket/{id}/update?action=comment"),
@@ -128,10 +134,128 @@ def ticket_history(request: Request, db: Db, actor: SignedIn, ticket_id: int) ->
     )
 
 
+@router.get("/ticket/{ticket_id}/update", include_in_schema=False)
+def ticket_update_form(
+    request: Request,
+    db: Db,
+    actor: SignedIn,
+    ticket_id: int,
+    action: Annotated[str, Query()] = update.RESPOND,
+    status: Annotated[str, Query()] = "",
+) -> Response:
+    """FP T13: the update form, its radio and its status from the link."""
+    view, held = _show_ticket(request, db, actor, ticket_id)
+    rights = _update_rights(request, db, held, view.ticket.queue_id)
+    reply, comment, modify = rights
+    if not (reply or comment or modify):
+        raise Forbidden(update.REPLY_TO_TICKET, view.ticket.queue_id)
+    form = UpdateForm(
+        update_type=_offered_type(action, reply, comment),
+        status=_offered_status(view.ticket.status, status, modify),
+    )
+    return _update_form(request, view, form, rights, "")
+
+
+@router.post("/ticket/{ticket_id}/update", include_in_schema=False)
+def ticket_update(
+    request: Request,
+    db: Db,
+    actor: SignedIn,
+    settings: Config,
+    ticket_id: int,
+    update_type: Annotated[str, Form(alias="UpdateType")] = update.RESPOND,
+    status: Annotated[str, Form()] = "",
+    content: Annotated[str, Form()] = "",
+) -> Response:
+    """FP T05-T08: the reply or the comment, and the status the form chose."""
+    view, held = _show_ticket(request, db, actor, ticket_id)
+    ticket = view.ticket
+    queue_id = ticket.queue_id
+    rights = _update_rights(request, db, held, queue_id)
+    reply, comment, modify = rights
+    if not (reply or comment or modify):
+        raise Forbidden(update.REPLY_TO_TICKET, queue_id)
+
+    form = UpdateForm(update_type=update_type, status=status, content=content).cleaned()
+    if form.content.strip():
+        if form.update_type == update.COMMENT and not comment:
+            raise Forbidden(update.COMMENT_ON_TICKET, queue_id)
+        if form.update_type == update.RESPOND and not reply:
+            raise Forbidden(update.REPLY_TO_TICKET, queue_id)
+    if form.status and form.status != ticket.status and not modify:
+        raise Forbidden(update.MODIFY_TICKET, queue_id)
+
+    problem = update.update_ticket(db, settings, ticket, actor, form)
+    if problem:
+        form.status = _offered_status(ticket.status, form.status, modify)
+        return _update_form(request, view, form, rights, problem)
+    return RedirectResponse(absolute_url(settings, f"/ticket/{ticket.id}"), status_code=SEE_OTHER)
+
+
+@router.get("/ticket/{ticket_id}/basics", include_in_schema=False)
+def ticket_basics_form(
+    request: Request,
+    db: Db,
+    actor: SignedIn,
+    held_actor: ActorPrincipals,
+    ticket_id: int,
+) -> Response:
+    """FP T09, T10: the basics form, behind ``ModifyTicket`` on the queue."""
+    view, _ = _modify_ticket(request, db, actor, ticket_id)
+    return _basics_form(request, db, held_actor, view, BasicsForm.of(view.ticket), "")
+
+
+@router.post("/ticket/{ticket_id}/basics", include_in_schema=False)
+def ticket_basics_save(
+    request: Request,
+    db: Db,
+    actor: SignedIn,
+    held_actor: ActorPrincipals,
+    settings: Config,
+    ticket_id: int,
+    subject: Annotated[str, Form()] = "",
+    queue: Annotated[str, Form()] = "",
+    status: Annotated[str, Form()] = "",
+    owner: Annotated[str, Form()] = "",
+    priority: Annotated[str, Form()] = "",
+) -> Response:
+    """FP T09, T10: each changed field its own ``Set`` transaction."""
+    view, _ = _modify_ticket(request, db, actor, ticket_id)
+    ticket = view.ticket
+    form = BasicsForm(
+        subject=subject.strip(),
+        queue=_int(queue, ticket.queue_id),
+        status=status.strip() or ticket.status,
+        owner=_int(owner, ticket.owner_id),
+        priority=priority.strip(),
+    )
+    queues = update.queue_choices(db, held_actor, ticket.queue_id, request)
+    owners = update.owner_choices(db, form.queue or ticket.queue_id, ticket.owner_id, request)
+    problem = update.basics_refusal(ticket, form, queues, owners)
+    if not problem:
+        problem = update.save_basics(db, settings, ticket, actor, form)
+    if problem:
+        return _basics_form(request, db, held_actor, view, form, problem, queues=queues)
+    return RedirectResponse(absolute_url(settings, f"/ticket/{ticket.id}"), status_code=SEE_OTHER)
+
+
 def _ticket_page(
     request: Request, db: Db, actor: SignedIn, ticket_id: int
 ) -> tuple[service.TicketView, list[service.HistoryEntry]]:
     """Load the ticket behind ``ShowTicket``, with the history it may show."""
+    view, held = _show_ticket(request, db, actor, ticket_id)
+    may_comment = has_right(db, held, service.COMMENT_ON_TICKET, view.ticket.queue_id, request)
+    return view, service.history(db, view.ticket.id, show_comments=may_comment)
+
+
+def _show_ticket(
+    request: Request, db: Db, actor: SignedIn, ticket_id: int
+) -> tuple[service.TicketView, Principals]:
+    """The ticket behind ``ShowTicket``, with the principal set it was read with.
+
+    The set carries the ticket's roles (Owner, Requestor), so every right the
+    pages ask about afterwards is asked of the same set.
+    """
     view = service.load_ticket(db, ticket_id)
     if view is None:  # FP T11: an unknown id is a page that is not there
         raise HTTPException(status_code=404)
@@ -139,8 +263,107 @@ def _ticket_page(
     queue_id = view.ticket.queue_id
     if not has_right(db, held, service.SHOW_TICKET, queue_id, request):
         raise Forbidden(service.SHOW_TICKET, queue_id)
-    may_comment = has_right(db, held, service.COMMENT_ON_TICKET, queue_id, request)
-    return view, service.history(db, view.ticket.id, show_comments=may_comment)
+    return view, held
+
+
+def _modify_ticket(
+    request: Request, db: Db, actor: SignedIn, ticket_id: int
+) -> tuple[service.TicketView, Principals]:
+    """The same, and ``ModifyTicket`` as well: basics is a form to be saved.
+
+    The GET is gated like the POST (M1's rule on the queue modify page): a
+    form nobody may submit would be a trap.
+    """
+    view, held = _show_ticket(request, db, actor, ticket_id)
+    if not update.may_modify(db, held, view.ticket.queue_id, request):
+        raise Forbidden(update.MODIFY_TICKET, view.ticket.queue_id)
+    return view, held
+
+
+def _update_rights(
+    request: Request, db: Db, held: Principals, queue_id: int
+) -> tuple[bool, bool, bool]:
+    """FP R06: may this viewer reply, comment, and change the status."""
+    return (
+        update.may_reply(db, held, queue_id, request),
+        update.may_comment(db, held, queue_id, request),
+        update.may_modify(db, held, queue_id, request),
+    )
+
+
+def _offered_type(action: str, reply: bool, comment: bool) -> str:
+    """The radio's selection: the link's, narrowed to what the viewer may do."""
+    wanted = action.strip() if action.strip() in update.UPDATE_TYPES else update.RESPOND
+    if wanted == update.RESPOND and not reply:
+        return update.COMMENT if comment else ""
+    if wanted == update.COMMENT and not comment:
+        return update.RESPOND if reply else ""
+    return wanted
+
+
+def _offered_status(current: str, wanted: str, modify: bool) -> str:
+    """The status select's selection: ``?status=`` when it is one it offers."""
+    if not modify:
+        return ""
+    return wanted.strip() if wanted.strip() in lifecycle.choices(current) else current
+
+
+def _update_form(
+    request: Request,
+    view: service.TicketView,
+    form: UpdateForm,
+    rights: tuple[bool, bool, bool],
+    message: str,
+) -> Response:
+    reply, comment, modify = rights
+    return render(
+        request,
+        "ticket/update.html",
+        {
+            "page_title": f"Update ticket #{view.ticket.id}: {view.ticket.subject}",
+            "titlebox": UPDATE_HEADING,
+            "ticket": view.ticket,
+            "queue": view.queue,
+            "actions": ACTIONS,
+            "form": form,
+            "may_reply": reply,
+            "may_comment": comment,
+            "statuses": lifecycle.choices(view.ticket.status) if modify else (),
+            "message": message,
+            "button": UPDATE_BUTTON,
+        },
+    )
+
+
+def _basics_form(
+    request: Request,
+    db: Db,
+    held_actor: Principals,
+    view: service.TicketView,
+    form: BasicsForm,
+    message: str,
+    queues: list[Queue] | None = None,
+) -> Response:
+    ticket = view.ticket
+    if queues is None:
+        queues = update.queue_choices(db, held_actor, ticket.queue_id, request)
+    return render(
+        request,
+        "ticket/basics.html",
+        {
+            "page_title": f"Modify ticket #{ticket.id}: {ticket.subject}",
+            "titlebox": BASICS_HEADING,
+            "ticket": ticket,
+            "queue": view.queue,
+            "actions": ACTIONS,
+            "form": form,
+            "queues": queues,
+            "owners": update.owner_choices(db, ticket.queue_id, ticket.owner_id, request),
+            "statuses": lifecycle.choices(ticket.status),
+            "message": message,
+            "button": SAVE_BUTTON,
+        },
+    )
 
 
 def _chosen_queue(

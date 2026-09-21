@@ -1,0 +1,48 @@
+{#
+  The update form of plan §8 (FP T05-T08, T13): the UpdateType radio, the
+  Status select and the Content textarea, one form and one button.
+
+  The form rules: every control has a name, one form per action, each radio's
+  label follows its input, the submit button carries its own visible label,
+  no label ends in a colon and no name contains "::". A viewer without the
+  right to reply or to comment sees that half of the radio disabled; one
+  without ModifyTicket is offered no status at all, so the form holds nothing
+  its submit would be refused for.
+#}
+{% extends "base.html" %}
+{% import "ticket/_actions.html" as bar with context %}
+
+{% block page_tabs %}{{ bar.action_links(ticket, actions) }}{% endblock %}
+
+{% block content %}
+<div class="titlebox">
+  <h2 class="titlebox-title">{{ titlebox }}</h2>
+  <div class="titlebox-content">
+    <form class="modify" method="post" action="{{ url('/ticket/' ~ ticket.id ~ '/update') }}">
+      <div class="row check">
+        <input type="radio" id="update_type_respond" name="UpdateType" value="respond"{% if form.update_type == 'respond' %} checked{% endif %}{% if not may_reply %} disabled{% endif %}>
+        <label for="update_type_respond">Reply</label>
+        <input type="radio" id="update_type_comment" name="UpdateType" value="comment"{% if form.update_type == 'comment' %} checked{% endif %}{% if not may_comment %} disabled{% endif %}>
+        <label for="update_type_comment">Comment</label>
+      </div>
+      {% if statuses %}
+      <div class="row">
+        <label for="status">Status</label>
+        <select id="status" name="status">
+          {% for option in statuses %}
+          <option value="{{ option }}"{% if option == form.status %} selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div class="row">
+        <label for="content">Content</label>
+        <textarea id="content" name="content" rows="10">{{ form.content }}</textarea>
+      </div>
+      <div class="row submit">
+        <button type="submit" name="submit" value="update">{{ button }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

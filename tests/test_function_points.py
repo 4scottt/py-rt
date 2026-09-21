@@ -36,8 +36,7 @@ WALK_ONLY = frozenset({"O08"})
 #: sign-in, session, shell and resolver ids; every other id belongs to a later
 #: package, which removes it from here as it tests it.
 PENDING = frozenset(
-    { "T05", "T06", "T07",
-        "T08", "T09", "T10", "T13",
+    {
         "S01", "S02", "S03", "S04", "S05",
         "F01", "F02", "F03", "F04", "F05", "F06", "F07", "U05", "U06", "U08",
         "R03", "R04", "R05", "R06", "R07", "R08", "R09",

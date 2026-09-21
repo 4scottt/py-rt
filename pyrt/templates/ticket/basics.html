@@ -1,0 +1,61 @@
+{#
+  The basics form of plan §8 (FP T09, T10, T12): Subject, Queue, Status,
+  Owner, Priority, the queue's custom fields, one Save Changes button.
+
+  The form rules: every control has a name, one form per action, the submit
+  button carries its own visible label, no label ends in a colon, no name
+  contains "::", and the queue, status and owner are selects, never an
+  autocomplete.
+#}
+{% extends "base.html" %}
+{% import "ticket/_actions.html" as bar with context %}
+
+{% block page_tabs %}{{ bar.action_links(ticket, actions) }}{% endblock %}
+
+{% block content %}
+<div class="titlebox">
+  <h2 class="titlebox-title">{{ titlebox }}</h2>
+  <div class="titlebox-content">
+    <form class="modify" method="post" action="{{ url('/ticket/' ~ ticket.id ~ '/basics') }}">
+      <div class="row">
+        <label for="subject">Subject</label>
+        <input type="text" id="subject" name="subject" value="{{ form.subject }}" maxlength="200">
+      </div>
+      <div class="row">
+        <label for="queue">Queue</label>
+        <select id="queue" name="queue">
+          {% for option in queues %}
+          <option value="{{ option.id }}"{% if option.id == form.queue %} selected{% endif %}>{{ option.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="row">
+        <label for="status">Status</label>
+        <select id="status" name="status">
+          {% for option in statuses %}
+          <option value="{{ option }}"{% if option == form.status %} selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="row">
+        <label for="owner">Owner</label>
+        <select id="owner" name="owner">
+          {% for option in owners %}
+          <option value="{{ option.id }}"{% if option.id == form.owner %} selected{% endif %}>{{ option.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="row">
+        <label for="priority">Priority</label>
+        <input type="text" id="priority" name="priority" value="{{ form.priority }}" size="4" maxlength="2">
+      </div>
+      {% block custom_fields %}
+      {# M4 fills this: the queue's custom fields as rows of this form. #}
+      {% endblock %}
+      <div class="row submit">
+        <button type="submit" name="submit" value="save">{{ button }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
