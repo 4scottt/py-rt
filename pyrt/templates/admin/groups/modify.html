@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "admin/groups/_tabs.html" import tabs, subtabs %}
+
+{% block page_heading %}{{ page_title }}{% if group %} {{ group.name }}{% endif %}{% endblock %}
+
+{% block page_tabs %}
+{% if group %}{{ subtabs('basics', group, url) }}{% else %}{{ tabs('create', url) }}{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="titlebox">
+  <h2 class="titlebox-title">Basics</h2>
+  <div class="titlebox-content">
+    <form class="modify" method="post" action="{{ url(action) }}">
+      <div class="row">
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" value="{{ form.name }}">
+      </div>
+      <div class="row">
+        <label for="description">Description</label>
+        <input type="text" id="description" name="description" value="{{ form.description }}">
+      </div>
+      <div class="row check">
+        <input type="checkbox" id="enabled" name="enabled" value="1"{% if form.enabled %} checked{% endif %}>
+        <label for="enabled">Enabled</label>
+      </div>
+      <div class="row submit">
+        <button type="submit" name="submit" value="save">{{ button }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

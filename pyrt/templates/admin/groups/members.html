@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% from "admin/groups/_tabs.html" import subtabs %}
+
+{% block page_tabs %}{{ subtabs('members', group, url) }}{% endblock %}
+
+{% block content %}
+<div class="titlebox">
+  <h2 class="titlebox-title">Members</h2>
+  <div class="titlebox-content">
+    <table class="collection">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Real Name</th>
+          <th>Email</th>
+          <th>Remove</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in members %}
+        <tr>
+          <td><a href="{{ url('/admin/users/' ~ row.id) }}">{{ row.name }}</a></td>
+          <td>{{ row.real_name }}</td>
+          <td>{{ row.email or '' }}</td>
+          <td>
+            <form method="post" action="{{ url('/admin/groups/' ~ group.id ~ '/members') }}">
+              <input type="hidden" name="user" value="{{ row.id }}">
+              <button type="submit" name="submit" value="remove">Remove</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr class="empty"><td colspan="4">No members</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="titlebox">
+  <h2 class="titlebox-title">Add a member</h2>
+  <div class="titlebox-content">
+    {% if candidates %}
+    <form class="modify" method="post" action="{{ url('/admin/groups/' ~ group.id ~ '/members') }}">
+      <div class="row">
+        <label for="user">Member</label>
+        <select id="user" name="user">
+          {% for row in candidates %}
+          <option value="{{ row.id }}">{{ row.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="row submit">
+        <button type="submit" name="submit" value="add">Add</button>
+      </div>
+    </form>
+    {% else %}
+    <p>Every user is already a member</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% from "admin/groups/_tabs.html" import tabs %}
+
+{% block page_tabs %}{{ tabs('select', url) }}{% endblock %}
+
+{% block content %}
+<table class="collection">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Enabled</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in groups %}
+    <tr>
+      <td><a href="{{ url('/admin/groups/' ~ row.id) }}">{{ row.name }}</a></td>
+      <td>{{ row.description }}</td>
+      <td>{{ 'no' if row.disabled else 'yes' }}</td>
+    </tr>
+    {% else %}
+    <tr class="empty"><td colspan="3">No groups</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p class="list-options">
+  {% if include_disabled %}
+  <a href="{{ url('/admin/groups') }}">Hide disabled groups</a>
+  {% else %}
+  <a href="{{ url('/admin/groups?disabled=1') }}">Include disabled groups</a>
+  {% endif %}
+</p>
+{% endblock %}

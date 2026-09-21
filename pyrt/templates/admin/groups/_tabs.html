@@ -1,0 +1,19 @@
+{# The tabs of plan §8: links to pages, never panes.
+
+   Macros, so the tabs carry the shell's `url` explicitly: an imported
+   template does not inherit the context processor's globals. #}
+{% macro tabs(current, url) %}
+<ul class="page-tabs">
+  <li{% if current == 'select' %} class="current"{% endif %}><a href="{{ url('/admin/groups') }}">Select</a></li>
+  <li{% if current == 'create' %} class="current"{% endif %}><a href="{{ url('/admin/groups/new') }}">Create</a></li>
+</ul>
+{% endmacro %}
+
+{# The sub-tabs of a group that exists: Basics and Members. #}
+{% macro subtabs(current, group, url) %}
+<div class="page-subtitle">{{ group.name }}</div>
+<ul class="page-tabs">
+  <li{% if current == 'basics' %} class="current"{% endif %}><a href="{{ url('/admin/groups/' ~ group.id) }}">Basics</a></li>
+  <li{% if current == 'members' %} class="current"{% endif %}><a href="{{ url('/admin/groups/' ~ group.id ~ '/members') }}">Members</a></li>
+</ul>
+{% endmacro %}
