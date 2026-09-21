@@ -30,13 +30,15 @@ function loadPlaywright() {
 }
 const { chromium } = loadPlaywright();
 
-const WRITTEN = 2; // the highest step written so far; raise it as milestones land
+const WRITTEN = 3; // the highest step written so far; raise it as milestones land
 const url = (process.env.WALK_URL || "http://localhost:8082").replace(/\/$/, "");
 const rootPassword = process.env.ROOT_PASSWORD || "password";
 const steps = Math.min(Number(process.env.WALK_STEPS || WRITTEN), WRITTEN);
 const headed = process.env.WALK_HEADED === "1";
 const stamp = new Date().toISOString().slice(11, 19).replace(/:/g, "");
 const queue = `Support ${stamp}`;
+const subject = "Printer on the third floor is jammed";
+let ticketUrl = "";
 const problems = [];
 const note = (s) => console.log(`  ${s}`);
 
@@ -84,6 +86,25 @@ try {
     await page.goto(`${url}/admin/queues`);
     await expectText(page, queue, "the queue in the list");
     note(`queue "${queue}" created and listed`);
+  }
+
+  // 3. a ticket in that queue: Tickets › New ticket in › the queue; the
+  //    goal's subject and a sentence of description
+  if (steps >= 3) {
+    console.log("3. create a ticket");
+    await page.goto(`${url}/`);
+    // the menus open on hover, as a person opens them: Tickets, then New ticket in
+    await page.hover('#nav .menu-label:has-text("Tickets")');
+    await page.hover('#nav .menu-label:has-text("New ticket in")');
+    await page.click(`#nav a:has-text("${queue}")`);
+    await expectText(page, "Create a ticket", "the create form");
+    await page.fill('input[name="subject"]', subject);
+    await page.fill('textarea[name="content"]', "The printer by the stairwell shows a paper jam and nobody can clear it.");
+    await page.click('button:has-text("Create")');
+    await expectText(page, `: ${subject}`, "the ticket page after creating");
+    ticketUrl = page.url();
+    await expectText(page, "Ticket created", "the Create transaction in the history");
+    note(`ticket created at ${ticketUrl}`);
   }
 
   // last. logout: the home page shows the login form again
