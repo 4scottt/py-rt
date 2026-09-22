@@ -1,0 +1,37 @@
+{#
+  The simple search's results (plan §8, FP S04, S05): the query echoed in the
+  heading, the six columns, newest first, Id and Subject each a link to the
+  ticket. The box the query came from is the shell's, at the top of every
+  page, and it comes back holding what was typed.
+#}
+{% extends "base.html" %}
+
+{% block page_heading %}
+{{ page_title }}{% if query %} for <q>{{ query }}</q>{% endif %}
+{% endblock %}
+
+{% block content %}
+<table class="collection" id="search-results">
+  <thead>
+    <tr>
+      {% for column in columns %}
+      <th>{{ column }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td><a href="{{ url('/ticket/' ~ row.id) }}">{{ row.id }}</a></td>
+      <td><a href="{{ url('/ticket/' ~ row.id) }}">{{ row.subject }}</a></td>
+      <td>{{ row.status }}</td>
+      <td>{{ row.queue_name }}</td>
+      <td>{{ row.owner_name }}</td>
+      <td>{{ row.created.strftime('%Y-%m-%d %H:%M') }}</td>
+    </tr>
+    {% else %}
+    <tr class="empty"><td colspan="{{ columns|length }}">{{ no_results }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

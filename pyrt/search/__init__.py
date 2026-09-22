@@ -1,1 +1,1 @@
-"""search (plan §8), filled by its M4 package."""
+"""The simple search (plan §8's ``/search?q=``, §10's grammar, FP S01-S05)."""
