@@ -14,6 +14,8 @@ from starlette.staticfiles import StaticFiles
 from pyrt import __version__
 from pyrt.config import Settings, load_settings
 from pyrt.db.engine import make_engine, make_session_factory
+from pyrt.telemetry import UNSET, Telemetry, Unset, instrument_app, instrument_engine
+from pyrt.telemetry import configure as configure_telemetry
 from pyrt.web import errors
 from pyrt.web.deps import RequestContextMiddleware
 from pyrt.web.templating import STATIC_DIR, make_templates
@@ -48,8 +50,18 @@ def routers() -> list[APIRouter]:
     ]
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
-    """Build the app. ``uvicorn`` calls this as a factory."""
+def create_app(
+    settings: Settings | None = None, *, telemetry: Telemetry | Unset | None = UNSET
+) -> FastAPI:
+    """Build the app. ``uvicorn`` calls this as a factory.
+
+    ``telemetry`` is the O04 seam: not passed at all (the default), the app
+    builds its own telemetry from the environment and, if that yields one
+    (``OTEL_EXPORTER_OTLP_ENDPOINT`` set), installs it as the SDK's global
+    providers (the serve path). Passed explicitly — ``None`` for a forced
+    no-op, or a :class:`~pyrt.telemetry.Telemetry` built with in-memory test
+    readers — that value is used as is and the SDK globals are left alone.
+    """
     settings = settings or load_settings()
     settings.require_serving()
 
@@ -59,6 +71,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.engine = engine
     app.state.session_factory = make_session_factory(engine)
     app.state.templates = make_templates()
+
+    if isinstance(telemetry, Unset):
+        telemetry = configure_telemetry(settings, set_global=True)
+    app.state.telemetry = telemetry
+    if telemetry is not None:
+        instrument_app(app, telemetry)
+        instrument_engine(engine, telemetry)
 
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     for router in routers():

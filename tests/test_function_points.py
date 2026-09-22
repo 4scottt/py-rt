@@ -37,7 +37,6 @@ WALK_ONLY = frozenset({"O08"})
 #: package, which removes it from here as it tests it.
 PENDING = frozenset(
     {
-        "O03", "O04",
     }
 )  # fmt: skip
 
