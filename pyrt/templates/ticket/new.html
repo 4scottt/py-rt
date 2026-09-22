@@ -27,6 +27,14 @@
           {% endfor %}
         </select>
       </div>
+      {#
+        The owner select is the list for the queue selected above: the
+        privileged users with OwnTicket on it, plus Nobody (FP T10, R06).
+        Changing the queue select leaves the list as it was, which is
+        acceptable — the POST re-checks the owner against the queue the
+        form actually chose and comes back with a message if it is not
+        one that queue offers.
+      #}
       <div class="row">
         <label for="owner">Owner</label>
         <select id="owner" name="owner">

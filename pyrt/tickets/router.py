@@ -17,7 +17,7 @@ from starlette.responses import RedirectResponse, Response
 
 from pyrt.acl import Forbidden, Principals, has_right, ticket_principals
 from pyrt.db.models import Queue
-from pyrt.queues.service import get_queue, queues_for_create
+from pyrt.queues.service import get_queue, may_create_in, queues_for_create
 from pyrt.tickets import lifecycle, service, update
 from pyrt.tickets.service import TicketForm
 from pyrt.tickets.update import BasicsForm, UpdateForm
@@ -91,7 +91,7 @@ def ticket_create(
         subject=subject.strip(),
         content=content,
     )
-    problem = closed or service.refusal(db, form, chosen)
+    problem = closed or service.refusal(db, form, chosen, request)
     if problem:
         return _create_form(request, db, allowed, chosen, form, problem)
     ticket = service.create_ticket(db, settings, actor, chosen, form)
@@ -371,11 +371,12 @@ def _chosen_queue(
 ) -> tuple[Queue, list[Queue], str]:
     """The queue the form is for, the queues its select offers, a refusal.
 
-    The one asked for, or the first the user may create in. A queue the
-    user may not create in is the denial page, not a form whose submit
-    would be refused (the rule M1 set on the queue modify page); a queue
-    that is only *disabled* is a message on the form instead, because the
-    person did nothing wrong and another queue is there to pick.
+    The one asked for, or the first the user may create in ("may create in"
+    being ``CreateTicket`` and ``SeeQueue``, FP R06). A queue the user may
+    not create in is the denial page, not a form whose submit would be
+    refused (the rule M1 set on the queue modify page); a queue that is only
+    *disabled* is a message on the form instead, because the person did
+    nothing wrong and another queue is there to pick.
     """
     allowed = queues_for_create(db, held, request)
     if queue_id:
@@ -385,7 +386,7 @@ def _chosen_queue(
         wanted = get_queue(db, queue_id)
         if wanted is None:  # FP T11's rule for a queue: no row, no page
             raise HTTPException(status_code=404)
-        if not allowed or not has_right(db, held, service.CREATE_TICKET, wanted.id, request):
+        if not allowed or not may_create_in(db, held, wanted.id, request):
             raise Forbidden(service.CREATE_TICKET, queue_id)
         return allowed[0], allowed, service.QUEUE_DISABLED
     if not allowed:
@@ -414,7 +415,7 @@ def _create_form(
             "page_title": f"{CREATE_HEADING} in {chosen.name}",
             "queues": allowed,
             "statuses": service.NEW_TICKET_STATUSES,
-            "owners": service.owner_choices(db),
+            "owners": service.owner_choices(db, chosen.id, request=request),
             "queue": chosen,
             "form": form,
             "message": message,

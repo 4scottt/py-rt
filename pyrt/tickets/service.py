@@ -13,6 +13,7 @@ import datetime as dt
 from dataclasses import dataclass
 from typing import Final
 
+from fastapi import Request
 from markupsafe import Markup
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -33,7 +34,7 @@ from pyrt.db.models import (
 )
 from pyrt.tickets import hooks, transactions
 from pyrt.tickets.render import render_body
-from pyrt.users.service import looks_like_email, privileged_users
+from pyrt.users.service import looks_like_email
 
 #: The rights of plan §8's vocabulary these pages ask about.
 CREATE_TICKET: Final = "CreateTicket"
@@ -101,15 +102,26 @@ def nobody(db: Session) -> User | None:
     return db.scalar(select(User).where(User.name == NOBODY_USER_NAME))
 
 
-def owner_choices(db: Session) -> list[User]:
-    """The ``Owner`` select: Nobody first, then the privileged users.
+def owner_choices(
+    db: Session,
+    queue_id: int | None = None,
+    current_owner_id: int = 0,
+    request: Request | None = None,
+) -> list[User]:
+    """FP T10: Nobody first, then the privileged users with ``OwnTicket``.
 
-    Plan §8: "a privileged user appears in the owner select". The narrower
-    rule of FP T10 (``OwnTicket`` on the queue) is the update package's.
+    The create form's select and the basics page's are the same list by the
+    same rule (M3's gates sweep): a privileged user appears in it only where
+    it holds ``OwnTicket`` on the queue in hand, globally or on that queue,
+    and ``SuperUser`` holds it everywhere. ``queue_id`` None asks about a
+    global grant alone.
+
+    The implementation is :func:`pyrt.tickets.update.owner_choices`, imported
+    here in the body because that module imports this one at import time.
     """
-    unowned = nobody(db)
-    choices = [] if unowned is None else [unowned]
-    return choices + [user for user in privileged_users(db) if user.name != NOBODY_USER_NAME]
+    from pyrt.tickets.update import owner_choices as by_own_ticket
+
+    return by_own_ticket(db, queue_id or 0, current_owner_id, request)
 
 
 def load_ticket(db: Session, ticket_id: int) -> TicketView | None:
@@ -200,7 +212,9 @@ def user_by_email(db: Session, address: str) -> User | None:
 # --- writes ----------------------------------------------------------------
 
 
-def refusal(db: Session, form: TicketForm, queue: Queue | None) -> str:
+def refusal(
+    db: Session, form: TicketForm, queue: Queue | None, request: Request | None = None
+) -> str:
     """Why this create form cannot be submitted, or ``""`` when it can.
 
     The gate (``CreateTicket`` on the queue) is the router's: a right the
@@ -214,14 +228,16 @@ def refusal(db: Session, form: TicketForm, queue: Queue | None) -> str:
         return BAD_STATUS
     if form.requestors and not looks_like_email(form.requestors):
         return BAD_REQUESTOR
-    if not _may_own(db, form.owner):
+    if not _may_own(db, form.owner, queue.id, request):
         return BAD_OWNER
     return ""
 
 
-def _may_own(db: Session, owner_id: int) -> bool:
-    """Whether that id is Nobody or an enabled privileged user."""
-    return any(candidate.id == owner_id for candidate in owner_choices(db))
+def _may_own(db: Session, owner_id: int, queue_id: int, request: Request | None = None) -> bool:
+    """Whether that id is Nobody or a user the queue's owner select offers."""
+    return any(
+        candidate.id == owner_id for candidate in owner_choices(db, queue_id, request=request)
+    )
 
 
 def requestor_user(db: Session, address: str, actor: User) -> User:

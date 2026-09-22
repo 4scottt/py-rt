@@ -109,14 +109,35 @@ def may_administer(
     return has_right(db, held, ADMIN_QUEUE, queue_id, request)
 
 
+def may_create_in(
+    db: Session, held: Principals, queue_id: int, request: Request | None = None
+) -> bool:
+    """FP R06: ``CreateTicket`` **and** ``SeeQueue`` on that queue.
+
+    A queue is offered for a new ticket only to someone who may see it and
+    may create in it: ``SeeQueue`` is what makes a queue visible at all, so
+    ``CreateTicket`` alone names a queue the person is not shown (M3's gates
+    sweep). A global grant of either covers every queue, and ``SuperUser``
+    covers both, so root is unaffected.
+    """
+    return has_right(db, held, CREATE_TICKET, queue_id, request) and has_right(
+        db, held, SEE_QUEUE, queue_id, request
+    )
+
+
 def queues_for_create(db: Session, held: Principals, request: Request | None = None) -> list[Queue]:
-    """The enabled queues the user may ``CreateTicket`` in, by name.
+    """The enabled queues the user may ``SeeQueue`` and ``CreateTicket`` in.
 
     The tickets package's entry point: the "New ticket in" submenu of plan
-    §11 and the create form's ``Queue`` select are this list.
+    §11 and the create form's ``Queue`` select are this list. Both rights
+    are asked through the memoised lookups, so the menu still costs the
+    principal set and two right queries at most.
     """
     rows = list(db.scalars(select(Queue).where(Queue.disabled.is_(False)).order_by(Queue.name)))
-    allowed = queues_with_right(db, held, CREATE_TICKET, {queue.id for queue in rows}, request)
+    ids = {queue.id for queue in rows}
+    allowed = queues_with_right(db, held, CREATE_TICKET, ids, request) & queues_with_right(
+        db, held, SEE_QUEUE, ids, request
+    )
     return [queue for queue in rows if queue.id in allowed]
 
 

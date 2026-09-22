@@ -332,6 +332,7 @@ def test_queues_for_create_is_the_enabled_queues_the_user_may_create_in(
     agent = make_user(db, "agent", "agent-password", privileged=True)
     for queue in (general, support, retired):
         grant(db, ("user", agent.id), "CreateTicket", queue=queue)
+        grant(db, ("user", agent.id), "SeeQueue", queue=queue)  # FP R06: both
 
     held = principals(db, agent)
     names = [queue.name for queue in service.queues_for_create(db, held)]

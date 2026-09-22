@@ -220,12 +220,16 @@ def test_fp_t01_create_needs_create_ticket_on_that_queue(client: TestClient, db:
 
     # A right on another queue is not a right on this one.
     grant(db, ("user", agent.id), "CreateTicket", queue=support)
+    grant(db, ("user", agent.id), "SeeQueue", queue=support)
     posted = create_form(client, db)
     assert posted.status_code == 403
     assert ticket_count(db) == 0
 
-    # And with the right on this queue it goes through.
+    # And with the rights on this queue it goes through (SeeQueue is the
+    # companion of FP R06: a queue is offered only to someone who sees it;
+    # tests/test_gates.py is where that half is proved).
     grant(db, ("user", agent.id), "CreateTicket", queue=general(db))
+    grant(db, ("user", agent.id), "SeeQueue", queue=general(db))
     assert create_form(client, db).status_code == 303
     assert ticket_count(db) == 1
 
