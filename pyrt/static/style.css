@@ -59,8 +59,8 @@ a:hover, a:focus { color: var(--blue-dark); text-decoration: underline; }
 #quick-search label { color: #cfd6dd; }
 #quick-search input { width: 14rem; }
 
-#user { color: #cfd6dd; }
-#user a { color: #9ec5ef; }
+#signed-in { color: #cfd6dd; }
+#signed-in a { color: #9ec5ef; }
 
 /* --- nav --------------------------------------------------------------- */
 
@@ -120,7 +120,7 @@ a:hover, a:focus { color: var(--blue-dark); text-decoration: underline; }
 }
 #page-title h1 { margin: 0; font-size: 1.5rem; font-weight: 600; }
 
-#content { padding: 1rem; }
+#main { padding: 1rem; }
 
 .message {
   margin: 0.75rem 1rem 0;

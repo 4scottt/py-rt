@@ -1,6 +1,6 @@
 [project]
 name = "py-rt"
-version = "0.1.0"
+version = "0.1.1"
 description = "A clean-room Python rewrite of Request Tracker's ticket core"
 readme = "README.md"
 requires-python = ">=3.13"

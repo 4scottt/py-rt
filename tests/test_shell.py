@@ -6,6 +6,7 @@ FP L02, L04, L05, O02, O05, O06, plus the two error pages.
 from __future__ import annotations
 
 import datetime as dt
+import re
 from typing import Annotated, Any, cast
 
 import pytest
@@ -29,7 +30,7 @@ from pyrt.db.models import (
     utcnow,
 )
 from tests.conftest import ROOT_TEST_PASSWORD, TEST_DSN
-from tests.test_acl import grant, make_queue
+from tests.test_acl import grant, make_group, make_queue
 from tests.test_auth import make_user, sign_in
 
 GLANCE = "RT at a glance"
@@ -207,6 +208,54 @@ def test_fp_l05_the_quick_search_box_is_in_every_signed_in_header(
         assert "Logged in as root" in page.text
         assert "RT for test" in page.text  # the logo, SITE_NAME from the settings
         assert "a rewrite of Request Tracker's ticket core" in page.text
+
+
+FORM_PAGES = (
+    "/",
+    "/search",
+    "/admin/users/new",
+    "/admin/groups/new",
+    "/admin/queues/new",
+    "/admin/custom-fields/new",
+)
+
+
+def test_a_page_renders_every_id_once_and_every_label_reaches_its_control(
+    client: TestClient, db: Session
+) -> None:
+    """The shell's ids never collide with a form's controls (2026-09-22).
+
+    The shell used to wrap the page in ``id="content"`` and name the
+    signed-in line ``id="user"``: on the members page the select is
+    ``id="user"`` and on the ticket forms the textarea is ``id="content"``,
+    so ``<label for>`` bound to the shell's element instead, the control
+    had no accessible name, and a browser driven by labels (the platform's
+    Pilot) could not find it. Every page renders each id once, and every
+    label's target is a form control on that page.
+    """
+    sign_in(client)
+    staff = make_group(db, "Staff")
+    queue = make_queue(db, "Support")
+    ticket = make_ticket(db, queue, user_by_name(db, "root"), "A subject")
+    pages = (
+        *FORM_PAGES,
+        f"/admin/groups/{staff.id}/members",
+        f"/ticket/new?queue={queue.id}",
+        f"/ticket/{ticket.id}",
+        f"/ticket/{ticket.id}/update",
+        f"/ticket/{ticket.id}/basics",
+    )
+    for path in pages:
+        page = client.get(path)
+        assert page.status_code == 200, path
+        ids = re.findall(r'\sid="([^"]+)"', page.text)
+        repeated = sorted({i for i in ids if ids.count(i) > 1})
+        assert not repeated, (path, repeated)
+        for target in re.findall(r'<label for="([^"]+)"', page.text):
+            control = re.search(
+                rf'<(input|select|textarea)\b[^>]*\sid="{re.escape(target)}"', page.text
+            )
+            assert control is not None, (path, target)
 
 
 def test_fp_o02_health_needs_nothing_writes_nothing_and_reports_the_database(

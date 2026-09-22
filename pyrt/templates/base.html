@@ -18,7 +18,7 @@
     <input type="text" id="q" name="q" value="{{ query|default('') }}" size="20">
     <button type="submit" name="go" value="search">Search</button>
   </form>
-  <div id="user">Logged in as {{ current_user.name }} &middot; <a href="{{ url('/logout') }}">Logout</a></div>
+  <div id="signed-in">Logged in as {{ current_user.name }} &middot; <a href="{{ url('/logout') }}">Logout</a></div>
   {% endif %}
 </div>
 
@@ -64,7 +64,7 @@
 {% if message %}<div class="message{% if message_ok %} ok{% endif %}">{{ message }}</div>{% endif %}
 {% endblock %}
 
-<div id="content">
+<div id="main">
 {% block content %}{% endblock %}
 </div>
 
