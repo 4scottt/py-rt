@@ -27,14 +27,25 @@ def routers() -> list[APIRouter]:
     The extension point of M1: a package adds its import and its router
     here, and nothing else in this module changes.
     """
+    from pyrt.customfields import router as customfields
     from pyrt.groups import router as groups
     from pyrt.queues import router as queues
     from pyrt.rights import router as rights
+    from pyrt.search import router as search
     from pyrt.tickets import router as tickets
     from pyrt.users import router as users
     from pyrt.web import home
 
-    return [home.router, queues.router, users.router, groups.router, rights.router, tickets.router]
+    return [
+        home.router,
+        queues.router,
+        users.router,
+        groups.router,
+        rights.router,
+        customfields.router,
+        search.router,
+        tickets.router,
+    ]
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
