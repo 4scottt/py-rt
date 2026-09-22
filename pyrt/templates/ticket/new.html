@@ -56,7 +56,14 @@
         <textarea id="content" name="content" rows="10">{{ form.content }}</textarea>
       </div>
       {% block custom_fields %}
-      {# M4 fills this: the queue's custom fields as rows of this form. #}
+      {#
+        FP F03, F05: the queue's enabled custom fields in sort order, one
+        text input each. They are here only for someone who holds
+        ModifyCustomField on the queue — the router sends an empty list
+        otherwise, and ignores what a hand-made form posts.
+      #}
+      {% from "ticket/_customfields.html" import inputs %}
+      {{ inputs(custom_fields) }}
       {% endblock %}
       <div class="row submit">
         <button type="submit" name="submit" value="create">{{ button }}</button>

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% import "admin/customfields/_form.html" as cf with context %}
+{% from "admin/customfields/_tabs.html" import tabs, subtabs %}
+
+{% block page_tabs %}
+{% if field %}{{ subtabs('basics', field, url) }}{% else %}{{ tabs('create', url) }}{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="titlebox">
+  <h2 class="titlebox-title">Basics</h2>
+  <div class="titlebox-content">
+    {{ cf.basics(action, form, button, type_label, type_value, applies_to_label, applies_to_value) }}
+  </div>
+</div>
+{% endblock %}

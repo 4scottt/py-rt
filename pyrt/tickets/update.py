@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from pyrt.acl import Principals, has_right, principals
 from pyrt.config import Settings
+from pyrt.customfields import service as customfields
 from pyrt.db.models import (
     NO_SUBJECT,
     Queue,
@@ -282,15 +283,27 @@ def save_basics(
     ticket: Ticket,
     actor: User,
     form: BasicsForm,
+    custom_values: dict[int, str] | None = None,
 ) -> str:
     """FP T09, T10: save the basics, one ``Set`` transaction per change.
 
     Called after :func:`basics_refusal` said yes. Nothing is written until a
     field has actually moved, so a form saved unchanged leaves no row behind
     and comes back saying so.
+
+    ``custom_values`` is FP F04: the ``cf-{id}`` inputs the router read, each
+    changed one its own ``CustomField`` transaction. They are applied first,
+    against the queue the ticket is in *now* — the queue whose fields the form
+    was rendered with — so a save that both moves the ticket and sets a value
+    writes the value the person was shown, which then stays behind as the
+    stray of FP F07. A value that moved counts as a change, so a form whose
+    only edit is a custom field does not come back "Nothing changed".
     """
     now = utcnow()
-    wrote = False
+    wrote = (
+        bool(custom_values)
+        and customfields.apply_values(db, ticket, actor, custom_values or {}) > 0
+    )
 
     subject = form.subject.strip() or NO_SUBJECT
     if subject != ticket.subject:

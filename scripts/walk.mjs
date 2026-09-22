@@ -31,7 +31,7 @@ function loadPlaywright() {
 const { chromium } = loadPlaywright();
 
 const WRITTEN = 12; // the highest step written so far; raise it as milestones land
-const UNWRITTEN = new Set([6, 7, 11]); // steps whose milestone has not landed: skipped
+const UNWRITTEN = new Set([11]); // steps whose milestone has not landed: skipped
 const run = (n) => steps >= n && !UNWRITTEN.has(n);
 const url = (process.env.WALK_URL || "http://localhost:8082").replace(/\/$/, "");
 const rootPassword = process.env.ROOT_PASSWORD || "password";
@@ -42,6 +42,7 @@ const queue = `Support ${stamp}`;
 const subject = "Printer on the third floor is jammed";
 const tech = `tech1-${stamp}`;
 const group = `Technicians ${stamp}`;
+const field = `Printer model ${stamp}`;
 let ticketUrl = "";
 const problems = [];
 const note = (s) => console.log(`  ${s}`);
@@ -137,7 +138,46 @@ try {
     note("comment recorded");
   }
 
-  // 6–7: search, a custom field — with M4
+  // 6. search: the box at the top of the page, the goal's words
+  //    ("Printer status:any": the simple search hides resolved tickets unless told)
+  if (run(6)) {
+    console.log("6. search");
+    await page.goto(`${url}/`);
+    await page.fill('input[name="q"]', "Printer status:any");
+    await page.click('button:has-text("Search")');
+    await expectText(page, "Search results", "the results page");
+    await expectText(page, subject, "the ticket in the results");
+    note("the printer ticket is listed");
+  }
+
+  // 7. a custom field: Admin › Custom Fields › Create ("Enter one value",
+  //    applies to Tickets), applied to the queue, then set on the ticket's Basics
+  if (run(7)) {
+    console.log("7. a custom field on the queue, set on the ticket");
+    await page.goto(`${url}/admin/custom-fields`);
+    await expectText(page, "Custom Fields", "the custom fields list");
+    await page.click('ul.page-tabs a:has-text("Create")');
+    await expectText(page, "Create a custom field", "the create form");
+    await page.fill('input[name="name"]', field);
+    await page.selectOption('select[name="type"]', { label: "Enter one value" });
+    await page.selectOption('select[name="applies_to"]', { label: "Tickets" });
+    await page.click('button:has-text("Create")');
+    await expectText(page, "Custom field created", "after creating the field");
+    await page.click('ul.page-tabs a:has-text("Applies to")');
+    await expectText(page, "Applies to", "the applies-to page");
+    await page.getByRole("checkbox", { name: queue }).check();
+    await page.click('button:has-text("Save Changes")');
+    await expectText(page, "Applies to updated", "after applying the field");
+    await page.goto(ticketUrl);
+    await page.click('a:has-text("Basics")');
+    await expectText(page, "Modify ticket #", "the basics page");
+    await page.getByLabel(field).fill("LaserJet 4");
+    await page.click('button:has-text("Save Changes")');
+    await expectText(page, "LaserJet 4", "the value on the ticket page");
+    await expectText(page, `Custom field ${field} changed`, "the custom-field transaction in the history");
+    note(`${field} = LaserJet 4 on the ticket`);
+  }
+
 
   // 8. a privileged user: Admin › Users › Create; the name, the real name,
   //    the email, the password left blank, privileged

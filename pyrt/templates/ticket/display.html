@@ -44,7 +44,16 @@
       <h2 class="titlebox-title">Custom Fields</h2>
       <div class="titlebox-content">
         {% block custom_fields %}
-        {# M4 fills this: the queue's custom fields with this ticket's values. #}
+        {#
+          FP F05, F07: the queue's custom fields with this ticket's values,
+          then any value the ticket still holds for a field this queue does
+          not carry, marked and read-only. The whole box needs
+          SeeCustomField on the queue.
+        #}
+        {% from "ticket/_customfields.html" import shown %}
+        {{ shown(custom_fields, custom_field_strays, may_see_custom_fields,
+                 custom_fields_not_shown, custom_fields_not_applied,
+                 custom_fields_empty) }}
         {% endblock %}
       </div>
     </div>

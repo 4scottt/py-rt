@@ -1,0 +1,19 @@
+{#
+  A field's "Applies to" page (FP F02): the enabled queues, a checkbox each,
+  ticked where this field's rows already say so. Saving writes the
+  difference; the queue's own Custom Fields page writes the same rows from
+  the other side.
+#}
+{% extends "base.html" %}
+{% from "admin/customfields/_tabs.html" import subtabs, checkboxes %}
+
+{% block page_tabs %}{{ subtabs('applies-to', field, url) }}{% endblock %}
+
+{% block content %}
+<div class="titlebox">
+  <h2 class="titlebox-title">Queues</h2>
+  <div class="titlebox-content">
+    {{ checkboxes(action, boxes, prefix, button, empty_message, url) }}
+  </div>
+</div>
+{% endblock %}

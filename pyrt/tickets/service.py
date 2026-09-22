@@ -19,6 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from pyrt.config import Settings
+from pyrt.customfields import service as customfields
 from pyrt.db.models import (
     NO_SUBJECT,
     NOBODY_USER_NAME,
@@ -272,12 +273,18 @@ def create_ticket(
     actor: User,
     queue: Queue,
     form: TicketForm,
+    custom_values: dict[int, str] | None = None,
 ) -> Ticket:
     """FP T01, T02: the ticket, its requestor and its ``Create`` transaction.
 
     One unit of work: the requestor (looked up or created), the ticket, the
     watcher row and the transaction with the content as its message. The
     ``created`` hook fires after the commit, on rows already written.
+
+    ``custom_values`` is FP F03/F04 on the create form: the ``cf-{id}`` inputs
+    the router read, applied after the ``Create`` transaction so each value
+    set at birth is its own ``CustomField`` row behind it. Only the fields
+    this queue carries are written, and an empty one writes nothing.
     """
     now = utcnow()
     requestor = requestor_user(db, form.requestors, actor)
@@ -300,6 +307,8 @@ def create_ticket(
     transaction = transactions.record(
         db, ticket, TransactionType.CREATE, actor, body=form.content or None
     )
+    if custom_values:
+        customfields.apply_values(db, ticket, actor, custom_values)
     # FP T02: Created and LastUpdated are the same moment on a new ticket,
     # and so is the transaction that made it.
     transaction.created = now

@@ -6,16 +6,27 @@ create, ``ShowTicket`` on the ticket's queue to read it,
 ``ModifyTicket`` for basics and for any status change — each checked against
 the ticket's own principal set, so a grant to the Owner or the Requestor role
 reaches the person it was meant for.
+
+The queue's custom fields ride these same three screens (FP F03-F07): the
+``cf-{id}`` inputs come in through :data:`pyrt.customfields.router.PostedValues`
+and the values are written inside the create's and the basics save's own unit
+of work. ``ModifyCustomField`` on the queue renders and saves them,
+``SeeCustomField`` shows them; without either the rows are not sent to the
+template at all, so a form nobody may submit is never drawn.
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Annotated, Final
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request
 from starlette.responses import RedirectResponse, Response
 
 from pyrt.acl import Forbidden, Principals, has_right, ticket_principals
+from pyrt.customfields import service as customfields
+from pyrt.customfields.router import PostedValues
+from pyrt.customfields.service import FieldValue
 from pyrt.db.models import Queue
 from pyrt.queues.service import get_queue, may_create_in, queues_for_create
 from pyrt.tickets import lifecycle, service, update
@@ -35,6 +46,9 @@ BASICS_HEADING: Final = "Basics"
 CREATE_BUTTON: Final = "Create"
 UPDATE_BUTTON: Final = "Update Ticket"
 SAVE_BUTTON: Final = "Save Changes"
+
+#: What the ticket page's Custom Fields box says when the queue carries none.
+NO_CUSTOM_FIELDS: Final = "No custom fields"
 
 #: The action links under the title bar (plan §8's Display row).
 ACTIONS: Final[tuple[tuple[str, str], ...]] = (
@@ -64,7 +78,7 @@ def ticket_new(
     """FP T01: the create form, its queue preselected from the link."""
     chosen, allowed, closed = _chosen_queue(request, db, held, _int(queue))
     form = TicketForm(queue=chosen.id, owner=_nobody_id(db))
-    return _create_form(request, db, allowed, chosen, form, closed)
+    return _create_form(request, db, held, allowed, chosen, form, closed)
 
 
 @router.post("/ticket/new", include_in_schema=False)
@@ -74,6 +88,7 @@ def ticket_create(
     held: ActorPrincipals,
     settings: Config,
     actor: SignedIn,
+    posted_values: PostedValues,
     queue: Annotated[str, Form()] = "",
     status: Annotated[str, Form()] = "new",
     owner: Annotated[str, Form()] = "",
@@ -81,7 +96,7 @@ def ticket_create(
     subject: Annotated[str, Form()] = "",
     content: Annotated[str, Form()] = "",
 ) -> Response:
-    """FP T01, T02: create the ticket, or come back with the message."""
+    """FP T01, T02, F04: create the ticket, or come back with the message."""
     chosen, allowed, closed = _chosen_queue(request, db, held, _int(queue))
     form = TicketForm(
         queue=chosen.id,
@@ -91,29 +106,47 @@ def ticket_create(
         subject=subject.strip(),
         content=content,
     )
+    # FP F05: the values are written only by someone the form was drawn for;
+    # anything else a POST carries is dropped without a word, as an unasked-for
+    # field on any other form would be.
+    values = posted_values if _may_set_custom_fields(request, db, held, chosen.id) else {}
     problem = closed or service.refusal(db, form, chosen, request)
     if problem:
-        return _create_form(request, db, allowed, chosen, form, problem)
-    ticket = service.create_ticket(db, settings, actor, chosen, form)
+        return _create_form(request, db, held, allowed, chosen, form, problem, values)
+    ticket = service.create_ticket(db, settings, actor, chosen, form, values)
     return RedirectResponse(absolute_url(settings, f"/ticket/{ticket.id}"), status_code=SEE_OTHER)
 
 
 @router.get("/ticket/{ticket_id}", include_in_schema=False)
 def ticket_display(request: Request, db: Db, actor: SignedIn, ticket_id: int) -> Response:
     """FP T03, T11, T12: the ticket page, its five boxes and its history."""
-    view, entries = _ticket_page(request, db, actor, ticket_id)
+    view, held, entries = _ticket_page(request, db, actor, ticket_id)
+    ticket = view.ticket
+    may_see = has_right(db, held, customfields.SEE_CUSTOM_FIELD, ticket.queue_id, request)
     return render(
         request,
         "ticket/display.html",
         {
-            "page_title": f"#{view.ticket.id}: {view.ticket.subject}",
-            "ticket": view.ticket,
+            "page_title": f"#{ticket.id}: {ticket.subject}",
+            "ticket": ticket,
             "queue": view.queue,
             "owner": view.owner,
-            "requestors": service.requestors(db, view.ticket.id),
+            "requestors": service.requestors(db, ticket.id),
             "entries": entries,
             "actions": ACTIONS,
             "not_set": service.NOT_SET,
+            # FP F05, F07: the box's rows, then the values of fields this
+            # queue no longer carries; both behind SeeCustomField.
+            "may_see_custom_fields": may_see,
+            "custom_fields": (
+                customfields.ticket_values(db, ticket.id, ticket.queue_id) if may_see else []
+            ),
+            "custom_field_strays": (
+                customfields.stray_values(db, ticket.id, ticket.queue_id) if may_see else []
+            ),
+            "custom_fields_not_shown": customfields.NOT_SHOWN,
+            "custom_fields_not_applied": customfields.NOT_APPLIED,
+            "custom_fields_empty": NO_CUSTOM_FIELDS,
         },
     )
 
@@ -121,7 +154,7 @@ def ticket_display(request: Request, db: Db, actor: SignedIn, ticket_id: int) ->
 @router.get("/ticket/{ticket_id}/history", include_in_schema=False)
 def ticket_history(request: Request, db: Db, actor: SignedIn, ticket_id: int) -> Response:
     """FP T04: the history alone, behind the same gate as the page."""
-    view, entries = _ticket_page(request, db, actor, ticket_id)
+    view, _, entries = _ticket_page(request, db, actor, ticket_id)
     return render(
         request,
         "ticket/history.html",
@@ -201,8 +234,8 @@ def ticket_basics_form(
     ticket_id: int,
 ) -> Response:
     """FP T09, T10: the basics form, behind ``ModifyTicket`` on the queue."""
-    view, _ = _modify_ticket(request, db, actor, ticket_id)
-    return _basics_form(request, db, held_actor, view, BasicsForm.of(view.ticket), "")
+    view, held = _modify_ticket(request, db, actor, ticket_id)
+    return _basics_form(request, db, held, held_actor, view, BasicsForm.of(view.ticket), "")
 
 
 @router.post("/ticket/{ticket_id}/basics", include_in_schema=False)
@@ -212,6 +245,7 @@ def ticket_basics_save(
     actor: SignedIn,
     held_actor: ActorPrincipals,
     settings: Config,
+    posted_values: PostedValues,
     ticket_id: int,
     subject: Annotated[str, Form()] = "",
     queue: Annotated[str, Form()] = "",
@@ -219,8 +253,8 @@ def ticket_basics_save(
     owner: Annotated[str, Form()] = "",
     priority: Annotated[str, Form()] = "",
 ) -> Response:
-    """FP T09, T10: each changed field its own ``Set`` transaction."""
-    view, _ = _modify_ticket(request, db, actor, ticket_id)
+    """FP T09, T10, F04: each changed field its own transaction."""
+    view, held = _modify_ticket(request, db, actor, ticket_id)
     ticket = view.ticket
     form = BasicsForm(
         subject=subject.strip(),
@@ -229,23 +263,34 @@ def ticket_basics_save(
         owner=_int(owner, ticket.owner_id),
         priority=priority.strip(),
     )
+    # FP F05: ModifyCustomField on the queue is what makes the inputs real;
+    # without it the page showed text and a posted value is dropped.
+    values = posted_values if _may_set_custom_fields(request, db, held, ticket.queue_id) else {}
     queues = update.queue_choices(db, held_actor, ticket.queue_id, request)
     owners = update.owner_choices(db, form.queue or ticket.queue_id, ticket.owner_id, request)
     problem = update.basics_refusal(ticket, form, queues, owners)
     if not problem:
-        problem = update.save_basics(db, settings, ticket, actor, form)
+        problem = update.save_basics(db, settings, ticket, actor, form, values)
     if problem:
-        return _basics_form(request, db, held_actor, view, form, problem, queues=queues)
+        return _basics_form(
+            request, db, held, held_actor, view, form, problem, queues=queues, values=values
+        )
     return RedirectResponse(absolute_url(settings, f"/ticket/{ticket.id}"), status_code=SEE_OTHER)
 
 
 def _ticket_page(
     request: Request, db: Db, actor: SignedIn, ticket_id: int
-) -> tuple[service.TicketView, list[service.HistoryEntry]]:
-    """Load the ticket behind ``ShowTicket``, with the history it may show."""
+) -> tuple[service.TicketView, Principals, list[service.HistoryEntry]]:
+    """Load the ticket behind ``ShowTicket``, with the history it may show.
+
+    The principal set comes back with it: the ticket page asks two more
+    rights of it (``CommentOnTicket`` for the comment bodies,
+    ``SeeCustomField`` for the Custom Fields box), and asking them of the
+    same set is what keeps a grant to the Owner or Requestor role working.
+    """
     view, held = _show_ticket(request, db, actor, ticket_id)
     may_comment = has_right(db, held, service.COMMENT_ON_TICKET, view.ticket.queue_id, request)
-    return view, service.history(db, view.ticket.id, show_comments=may_comment)
+    return view, held, service.history(db, view.ticket.id, show_comments=may_comment)
 
 
 def _show_ticket(
@@ -338,15 +383,22 @@ def _update_form(
 def _basics_form(
     request: Request,
     db: Db,
+    held: Principals,
     held_actor: Principals,
     view: service.TicketView,
     form: BasicsForm,
     message: str,
     queues: list[Queue] | None = None,
+    values: dict[int, str] | None = None,
 ) -> Response:
     ticket = view.ticket
     if queues is None:
         queues = update.queue_choices(db, held_actor, ticket.queue_id, request)
+    may_set = _may_set_custom_fields(request, db, held, ticket.queue_id)
+    may_see = may_set or has_right(
+        db, held, customfields.SEE_CUSTOM_FIELD, ticket.queue_id, request
+    )
+    rows = customfields.ticket_values(db, ticket.id, ticket.queue_id) if may_see else []
     return render(
         request,
         "ticket/basics.html",
@@ -362,6 +414,10 @@ def _basics_form(
             "statuses": lifecycle.choices(ticket.status),
             "message": message,
             "button": SAVE_BUTTON,
+            # FP F04, F05: inputs with ModifyCustomField, text with
+            # SeeCustomField alone, nothing without either.
+            "custom_fields": _with_posted(rows, values),
+            "may_modify_custom_fields": may_set,
         },
     )
 
@@ -403,11 +459,16 @@ def _nobody_id(db: Db) -> int:
 def _create_form(
     request: Request,
     db: Db,
+    held: Principals,
     allowed: list[Queue],
     chosen: Queue,
     form: TicketForm,
     message: str,
+    values: dict[int, str] | None = None,
 ) -> Response:
+    rows: list[FieldValue] = []
+    if _may_set_custom_fields(request, db, held, chosen.id):
+        rows = _with_posted(customfields.blank_values(db, chosen.id), values)
     return render(
         request,
         "ticket/new.html",
@@ -420,5 +481,20 @@ def _create_form(
             "form": form,
             "message": message,
             "button": CREATE_BUTTON,
+            # FP F03: the chosen queue's fields, in sort order, as this form's
+            # last rows. A refused POST comes back with what was typed in them.
+            "custom_fields": rows,
         },
     )
+
+
+def _may_set_custom_fields(request: Request, db: Db, held: Principals, queue_id: int) -> bool:
+    """FP F05: ``ModifyCustomField`` on the queue sets a value; ``SuperUser`` too."""
+    return has_right(db, held, customfields.MODIFY_CUSTOM_FIELD, queue_id, request)
+
+
+def _with_posted(rows: list[FieldValue], values: dict[int, str] | None) -> list[FieldValue]:
+    """The rows as the form sent them back, so a refusal keeps what was typed."""
+    if not values:
+        return rows
+    return [replace(row, value=values.get(row.id, row.value)) for row in rows]

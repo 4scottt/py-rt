@@ -1,0 +1,18 @@
+{#
+  A queue's Custom Fields sub-tab (FP F02, FP Q04): the enabled custom
+  fields, a checkbox each, ticked where this queue carries them. The same
+  `queue_custom_fields` rows the field's own "Applies to" page writes.
+#}
+{% extends "base.html" %}
+{% from "admin/customfields/_tabs.html" import queue_subtabs, checkboxes %}
+
+{% block page_tabs %}{{ queue_subtabs(queue, url) }}{% endblock %}
+
+{% block content %}
+<div class="titlebox">
+  <h2 class="titlebox-title">Custom Fields</h2>
+  <div class="titlebox-content">
+    {{ checkboxes(action, boxes, prefix, button, empty_message, url) }}
+  </div>
+</div>
+{% endblock %}

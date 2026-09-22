@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "admin/customfields/_tabs.html" import tabs %}
+
+{% block page_tabs %}{{ tabs('select', url) }}{% endblock %}
+
+{% block content %}
+<table class="collection">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Type</th>
+      <th>Applies to</th>
+      <th>Enabled</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in fields %}
+    <tr>
+      <td><a href="{{ url('/admin/custom-fields/' ~ row.id) }}">{{ row.name }}</a></td>
+      <td>{{ row.description }}</td>
+      <td>{{ type_label }}</td>
+      <td>{{ applies_to_label }}</td>
+      <td>{{ 'No' if row.disabled else 'Yes' }}</td>
+    </tr>
+    {% else %}
+    <tr class="empty"><td colspan="5">No custom fields</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p class="list-options">
+  {% if include_disabled %}
+  <a href="{{ url('/admin/custom-fields') }}">Hide disabled custom fields</a>
+  {% else %}
+  <a href="{{ url('/admin/custom-fields?disabled=1') }}">Include disabled custom fields</a>
+  {% endif %}
+</p>
+{% endblock %}

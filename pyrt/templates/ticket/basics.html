@@ -50,7 +50,17 @@
         <input type="text" id="priority" name="priority" value="{{ form.priority }}" size="4" maxlength="2">
       </div>
       {% block custom_fields %}
-      {# M4 fills this: the queue's custom fields as rows of this form. #}
+      {#
+        FP F04, F05: the queue's custom fields with this ticket's values.
+        ModifyCustomField on the queue makes them inputs; SeeCustomField
+        alone makes them text; without either the router sends no rows.
+      #}
+      {% from "ticket/_customfields.html" import inputs, readonly %}
+      {% if may_modify_custom_fields %}
+      {{ inputs(custom_fields) }}
+      {% else %}
+      {{ readonly(custom_fields) }}
+      {% endif %}
       {% endblock %}
       <div class="row submit">
         <button type="submit" name="submit" value="save">{{ button }}</button>

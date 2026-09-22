@@ -1,0 +1,40 @@
+{#
+  The Basics form of a custom field (plan §8), one template for Create and
+  Modify. The two selects each offer the one option the plan names: the type
+  `Enter one value` and `Applies to` `Tickets`.
+
+  The form rules: every control has a name, one form per action, the submit
+  button carries its own visible label, the checkbox's label follows its
+  input, and no label ends in a colon.
+#}
+{% macro basics(action, fields, button, type_label, type_value, applies_to_label, applies_to_value) %}
+<form class="modify" method="post" action="{{ url(action) }}">
+  <div class="row">
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" value="{{ fields.name }}" maxlength="200">
+  </div>
+  <div class="row">
+    <label for="description">Description</label>
+    <input type="text" id="description" name="description" value="{{ fields.description }}" maxlength="255">
+  </div>
+  <div class="row">
+    <label for="type">Type</label>
+    <select id="type" name="type">
+      <option value="{{ type_value }}" selected>{{ type_label }}</option>
+    </select>
+  </div>
+  <div class="row">
+    <label for="applies_to">Applies to</label>
+    <select id="applies_to" name="applies_to">
+      <option value="{{ applies_to_value }}" selected>{{ applies_to_label }}</option>
+    </select>
+  </div>
+  <div class="row check">
+    <input type="checkbox" id="enabled" name="enabled" value="1"{% if fields.enabled %} checked{% endif %}>
+    <label for="enabled">Enabled</label>
+  </div>
+  <div class="row submit">
+    <button type="submit" name="submit" value="save">{{ button }}</button>
+  </div>
+</form>
+{% endmacro %}

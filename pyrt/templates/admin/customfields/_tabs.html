@@ -1,0 +1,52 @@
+{# The tabs of plan §8: links to pages, never panes.
+
+   Macros, so the tabs carry the shell's `url` explicitly: an imported
+   template does not inherit the context processor's globals. #}
+{% macro tabs(current, url) %}
+<ul class="page-tabs">
+  <li{% if current == 'select' %} class="current"{% endif %}><a href="{{ url('/admin/custom-fields') }}">Select</a></li>
+  <li{% if current == 'create' %} class="current"{% endif %}><a href="{{ url('/admin/custom-fields/new') }}">Create</a></li>
+</ul>
+{% endmacro %}
+
+{# The sub-tabs of a field that exists: Basics and Applies to. #}
+{% macro subtabs(current, field, url) %}
+<div class="page-subtitle">{{ field.name }}</div>
+<ul class="page-tabs">
+  <li{% if current == 'basics' %} class="current"{% endif %}><a href="{{ url('/admin/custom-fields/' ~ field.id) }}">Basics</a></li>
+  <li{% if current == 'applies-to' %} class="current"{% endif %}><a href="{{ url('/admin/custom-fields/' ~ field.id ~ '/applies-to') }}">Applies to</a></li>
+</ul>
+{% endmacro %}
+
+{# The queue's own sub-tabs, Custom Fields current (the queue modify page's
+   bar, so a person lands back where they came from). #}
+{% macro queue_subtabs(queue, url) %}
+<div class="page-subtitle">{{ queue.name }}</div>
+<ul class="page-tabs">
+  <li><a href="{{ url('/admin/queues/' ~ queue.id) }}">Basics</a></li>
+  <li><a href="{{ url('/admin/queues/' ~ queue.id ~ '/group-rights') }}">Group Rights</a></li>
+  <li><a href="{{ url('/admin/queues/' ~ queue.id ~ '/user-rights') }}">User Rights</a></li>
+  <li class="current"><a href="{{ url('/admin/queues/' ~ queue.id ~ '/custom-fields') }}">Custom Fields</a></li>
+</ul>
+{% endmacro %}
+
+{# One "Applies to" form: a checkbox per row, its label after it, one button.
+
+   The same shape serves both directions (a field's queues, a queue's
+   fields); `prefix` is what the control names start with, `queue-` or
+   `field-`, and an id the name cannot serve ties the label to the input. #}
+{% macro checkboxes(action, boxes, prefix, button, empty_message, url) %}
+<form class="modify" method="post" action="{{ url(action) }}">
+  {% for box in boxes %}
+  <div class="row check">
+    <input type="checkbox" id="{{ prefix }}-box-{{ box.id }}" name="{{ box.control(prefix) }}" value="1"{% if box.checked %} checked{% endif %}>
+    <label for="{{ prefix }}-box-{{ box.id }}">{{ box.name }}</label>
+  </div>
+  {% else %}
+  <p class="empty">{{ empty_message }}</p>
+  {% endfor %}
+  <div class="row submit">
+    <button type="submit" name="submit" value="save">{{ button }}</button>
+  </div>
+</form>
+{% endmacro %}

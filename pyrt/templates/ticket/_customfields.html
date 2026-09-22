@@ -1,0 +1,54 @@
+{#
+  The queue's custom fields on the three ticket screens (FP F03-F07).
+
+  `inputs` is the create form's and the basics form's rows — a text input per
+  field, named `cf-{id}`, its label before it as a text field's label goes.
+  `readonly` is the same rows for a viewer who may see but not set them.
+  `shown` is the ticket page's Custom Fields box: the queue's fields with
+  their values or "(not set)", then any value the ticket still holds for a
+  field this queue does not carry, marked (FP F07).
+
+  Macros, so the tabs and rows carry the shell's `url` where they need it;
+  nothing here queries — the router hands in the rows the service read.
+#}
+{% macro inputs(fields) %}
+{% for field in fields %}
+<div class="row">
+  <label for="{{ field.control }}">{{ field.name }}</label>
+  <input type="text" id="{{ field.control }}" name="{{ field.control }}" value="{{ field.value }}" maxlength="255">
+</div>
+{% endfor %}
+{% endmacro %}
+
+{% macro readonly(fields) %}
+{# The table the ticket page uses, not a row of the form: these are not
+   controls, and a label with nothing to point at would be a lie. #}
+{% if fields %}
+<table class="collection">
+  <tbody>
+    {% for field in fields %}
+    <tr><th>{{ field.name }}</th><td>{{ field.shown }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endmacro %}
+
+{% macro shown(fields, strays, may_see, not_shown, not_applied, empty_message) %}
+{% if not may_see %}
+<p class="empty">{{ not_shown }}</p>
+{% elif not fields and not strays %}
+<p class="empty">{{ empty_message }}</p>
+{% else %}
+<table class="collection">
+  <tbody>
+    {% for field in fields %}
+    <tr><th>{{ field.name }}</th><td>{{ field.shown }}</td></tr>
+    {% endfor %}
+    {% for field in strays %}
+    <tr class="not-applied"><th>{{ field.name }}</th><td>{{ field.shown }} <span class="note">{{ not_applied }}</span></td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endmacro %}
