@@ -67,3 +67,52 @@ is unreachable), and is what the image's `HEALTHCHECK` asks, through the CLI
 (`pyrt healthcheck`) rather than a curl the image does not carry. The process
 runs as the non-root user `pyrt`, uid 1000; the only path it writes is
 `/var/lib/py-rt`, and only when `MAIL_MODE=file`. No volume is declared.
+
+## Mail in
+
+One message on standard input becomes a ticket, or a reply on one:
+
+    docker exec -i py-rt sh -c 'pyrt mailgate --queue General --action correspond' < message.eml
+
+The command is the whole gateway: no listener, no web hook, no second
+process. It reads the message, files it against the database directly and
+prints two lines on success —
+
+    ok
+    Ticket: 42
+
+— or one line on refusal, and exits 1:
+
+    not ok: permission denied: CreateTicket
+
+`--action` is `correspond` (the default) or `comment`; `--url` and
+`--debug` are accepted and ignored, so the argv a caller already sends
+keeps working. Log lines go to standard error, so standard output carries
+nothing but the protocol.
+
+**The queue is the one named on the command line**, never the `To` header.
+**The subject tag decides the rest**: a subject holding `[<tag> #<id>]`
+whose tag is `SITE_NAME` or the queue's own Subject Tag and whose id names
+a ticket is filed onto that ticket as a correspondence (and a `new` ticket
+opens, as a reply through the web opens it); anything else opens a new
+ticket, with our tag taken out of the subject it is stored under. Another
+tracker's tag is not ours and stays in the subject.
+
+The sender is the `From` address's user, created unprivileged if it is
+new — the address as its name, no password, so the account cannot be
+signed into. It is the requestor of a ticket it opens and the author of
+every transaction it writes, and its rights are what decide: `CreateTicket`
+on the queue to open a ticket, `ReplyToTicket` on the ticket's queue to
+answer one. A stranger writing in holds `Everyone` and `Unprivileged`, so
+mail is accepted exactly where those rights are granted to `Everyone` (or
+to `Requestor`, which lets a requestor answer their own ticket). Nothing
+is written when the message is refused.
+
+The body is the first `text/plain` part, the message walked depth first
+with the part's charset honoured; a message that carries only HTML has its
+tags stripped to text. The `Message-ID` and the top-level headers are kept
+beside the body.
+
+`pyrt mailgate` needs the database settings and `SITE_NAME` only: unlike
+`pyrt serve` it does not ask for `BASE_URL` or `SESSION_SECRET`, though a
+ticket link in the autoreply is empty without the first.

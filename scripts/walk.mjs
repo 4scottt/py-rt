@@ -12,6 +12,10 @@
 //   WALK_HEADED=1    show the browser
 //   WALK_STEPS       how many steps to run (default: every step written so far)
 //   PLAYWRIGHT_DIR   where `playwright` is installed (default: scripts/.walk, then a global resolve)
+//   WALK_MAILGATE    the gateway command for step 11, run by a shell with the message on stdin
+//                    (default: the compose stack's `docker compose -f deploy/compose.yaml exec -T app pyrt mailgate`;
+//                    by hand against a dev server: `env DATABASE_URL=… SITE_NAME=localhost uv run pyrt mailgate`)
+//   WALK_SITE_NAME   the name in the reply's subject tag (default localhost, the compose stack's SITE_NAME)
 //
 // Steps: 1 sign in · 2 create a queue · (M2) 3 a ticket · 4 reply · 5 comment ·
 // (M4) 6 search · 7 a custom field · (M3) 8 a user · 9 a group · 10 rights ·
@@ -19,6 +23,7 @@
 import path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 function loadPlaywright() {
@@ -31,7 +36,7 @@ function loadPlaywright() {
 const { chromium } = loadPlaywright();
 
 const WRITTEN = 12; // the highest step written so far; raise it as milestones land
-const UNWRITTEN = new Set([11]); // steps whose milestone has not landed: skipped
+const UNWRITTEN = new Set(); // steps whose milestone has not landed: skipped
 const run = (n) => steps >= n && !UNWRITTEN.has(n);
 const url = (process.env.WALK_URL || "http://localhost:8082").replace(/\/$/, "");
 const rootPassword = process.env.ROOT_PASSWORD || "password";
@@ -245,6 +250,34 @@ try {
   }
 
   // 11. mail — with M5
+
+  // 11. mail: the platform's fixed message through the gateway command opens
+  //     a ticket in General (Everyone was granted in step 10), and its tagged
+  //     reply threads onto it; the ticket's page shows both
+  if (run(11)) {
+    console.log("11. a ticket by mail, answered by mail");
+    const gate = process.env.WALK_MAILGATE || "docker compose -f deploy/compose.yaml exec -T app pyrt mailgate";
+    const site = process.env.WALK_SITE_NAME || "localhost";
+    const run = `walk${stamp}`;
+    const send = (subject) => {
+      const msg = ["From: workload@oldbox.invalid", "To: support@oldbox.invalid", `Subject: ${subject}`,
+        "Content-Type: text/plain; charset=utf-8", "", "The oldbox workload sent this message to exercise the mail interface.", ""].join("\n");
+      const r = spawnSync("sh", ["-c", `${gate} --queue General --action correspond --url ${url} --debug`], { input: msg, encoding: "utf8", cwd: here + "/.." });
+      const out = (r.stdout || "").trim();
+      if (r.status !== 0 || !out.split("\n").includes("ok")) throw new Error(`mailgate refused: ${out} ${(r.stderr || "").slice(0, 300)}`);
+      const m = out.match(/^Ticket: (\d+)$/m);
+      if (!m) throw new Error(`mailgate said ok but named no ticket: ${out}`);
+      return m[1];
+    };
+    const id = send(`oldbox workload ${run}`);
+    const again = send(`[${site} #${id}] oldbox workload ${run}`);
+    if (again !== id) throw new Error(`the reply landed on ticket ${again}, not ${id}`);
+    await page.goto(`${url}/ticket/${id}`);
+    await expectText(page, `oldbox workload ${run}`, "the mailed ticket's page");
+    await expectText(page, "Ticket created", "the create by mail");
+    await expectText(page, "Correspondence added", "the reply by mail");
+    note(`ticket ${id} opened by mail and answered by mail`);
+  }
 
   // 12. resolve the ticket, last in the workload
   if (run(12)) {

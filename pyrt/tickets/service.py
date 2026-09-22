@@ -274,6 +274,9 @@ def create_ticket(
     queue: Queue,
     form: TicketForm,
     custom_values: dict[int, str] | None = None,
+    *,
+    message_id: str | None = None,
+    headers: str | None = None,
 ) -> Ticket:
     """FP T01, T02: the ticket, its requestor and its ``Create`` transaction.
 
@@ -285,6 +288,11 @@ def create_ticket(
     the router read, applied after the ``Create`` transaction so each value
     set at birth is its own ``CustomField`` row behind it. Only the fields
     this queue carries are written, and an empty one writes nothing.
+
+    ``message_id`` and ``headers`` are the mail gateway's (FP M02): a ticket
+    born of a message keeps that message's identity on its ``Create`` row,
+    so a later reply can be tied back to it. The web's create form passes
+    neither and the columns stay NULL.
     """
     now = utcnow()
     requestor = requestor_user(db, form.requestors, actor)
@@ -305,7 +313,13 @@ def create_ticket(
     db.flush()
     db.add(TicketWatcher(ticket_id=ticket.id, user_id=requestor.id, role=WatcherRole.REQUESTOR))
     transaction = transactions.record(
-        db, ticket, TransactionType.CREATE, actor, body=form.content or None
+        db,
+        ticket,
+        TransactionType.CREATE,
+        actor,
+        body=form.content or None,
+        message_id=message_id,
+        headers=headers,
     )
     if custom_values:
         customfields.apply_values(db, ticket, actor, custom_values)
