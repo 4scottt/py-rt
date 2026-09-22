@@ -1,0 +1,52 @@
+{#
+  The rights page of plan §8, one template for the four routes: group or
+  user rights, on a queue or globally.
+
+  The form rules: one form for the page and one button, every checkbox
+  named `{principal}-{right}` (the plan's own spelling, which the goal text
+  and the walk both use), its label after it and tied to it by an id the
+  name cannot serve (a group name may hold spaces), and no colon anywhere.
+#}
+{% extends "base.html" %}
+
+{% block page_tabs %}
+{% if queue %}
+<div class="page-subtitle">{{ queue.name }}</div>
+<ul class="page-tabs">
+  <li><a href="{{ url('/admin/queues/' ~ queue.id) }}">Basics</a></li>
+  <li{% if current_tab == 'group-rights' %} class="current"{% endif %}><a href="{{ url('/admin/queues/' ~ queue.id ~ '/group-rights') }}">Group Rights</a></li>
+  <li{% if current_tab == 'user-rights' %} class="current"{% endif %}><a href="{{ url('/admin/queues/' ~ queue.id ~ '/user-rights') }}">User Rights</a></li>
+  <li><a href="{{ url('/admin/queues/' ~ queue.id ~ '/custom-fields') }}">Custom Fields</a></li>
+</ul>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<form class="modify rights" method="post" action="{{ url(action) }}">
+  {% for section in sections %}
+  <div class="titlebox">
+    <h2 class="titlebox-title">{{ section.title }}</h2>
+    <div class="titlebox-content">
+      {% for row in section.rows %}
+      <div class="rights-principal">
+        <h3 class="rights-principal-name">{{ row.name }}</h3>
+        <div class="rights-grid">
+          {% for right in rights %}
+          <div class="row check">
+            <input type="checkbox" id="{{ row.element_id(right) }}" name="{{ row.control(right) }}" value="1"{% if right in row.checked %} checked{% endif %}>
+            <label for="{{ row.element_id(right) }}">{{ right }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <p class="empty">{{ section.empty_message }}</p>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+  <div class="row submit">
+    <button type="submit" name="submit" value="save">{{ button }}</button>
+  </div>
+</form>
+{% endblock %}
