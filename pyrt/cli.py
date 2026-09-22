@@ -90,7 +90,12 @@ def _serve(settings: Settings) -> int:
         port=settings.port,
         workers=settings.workers,
         access_log=True,
-        log_config=None,
+        # A worker is a *spawned* process (a fresh interpreter): the JSON
+        # handler main() installed in this process is not inherited, and
+        # log_config=None would leave the worker with no handler at all, so
+        # nothing — not the mail sender's lines — would reach stdout. The
+        # dict configures each worker the same way pyrt.logging.configure does.
+        log_config=pyrt_logging.uvicorn_log_config(logging.getLogger().getEffectiveLevel()),
     )
     return 0
 

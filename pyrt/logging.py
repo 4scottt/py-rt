@@ -62,6 +62,29 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(payload, default=str)
 
 
+def uvicorn_log_config(level: str | int = "INFO") -> dict[str, Any]:
+    """The same setup as :func:`configure`, as the dictConfig uvicorn hands
+    to every worker process it spawns (a spawned worker inherits nothing)."""
+    name = level if isinstance(level, str) else logging.getLevelName(level)
+    return {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {"json": {"()": "pyrt.logging.JsonFormatter"}},
+        "handlers": {
+            "stdout": {
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stdout",
+                "formatter": "json",
+            }
+        },
+        "root": {"handlers": ["stdout"], "level": str(name).upper()},
+        "loggers": {
+            n: {"handlers": [], "propagate": True}
+            for n in ("uvicorn", "uvicorn.error", "uvicorn.access")
+        },
+    }
+
+
 def configure(level: str | int = "INFO") -> None:
     """Install the JSON formatter on the root logger, writing to stdout."""
     handler = logging.StreamHandler(stream=sys.stdout)

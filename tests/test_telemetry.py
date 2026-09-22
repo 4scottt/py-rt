@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Sequence
+from typing import cast
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from opentelemetry.sdk.metrics.export import InMemoryMetricReader, MetricsData
+from opentelemetry.sdk.metrics.export import HistogramDataPoint, InMemoryMetricReader, MetricsData
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import SpanKind
@@ -25,21 +28,23 @@ from tests.conftest import TEST_DSN
 from tests.test_auth import sign_in
 
 
-def _histogram_points(metrics_data: MetricsData | None, name: str) -> list[object]:
+def _histogram_points(metrics_data: MetricsData | None, name: str) -> list[HistogramDataPoint]:
     """Every data point of the histogram ``name``, across every resource and
     scope (there is one of each here, but this does not assume it)."""
-    points: list[object] = []
+    points: list[HistogramDataPoint] = []
     if metrics_data is None:
         return points
     for resource_metrics in metrics_data.resource_metrics:
         for scope_metrics in resource_metrics.scope_metrics:
             for metric in scope_metrics.metrics:
                 if metric.name == name:
-                    points.extend(metric.data.data_points)
+                    points.extend(
+                        p for p in metric.data.data_points if isinstance(p, HistogramDataPoint)
+                    )
     return points
 
 
-def _client_spans(spans: list[ReadableSpan]) -> list[ReadableSpan]:
+def _client_spans(spans: Sequence[ReadableSpan]) -> list[ReadableSpan]:
     return [span for span in spans if span.kind == SpanKind.CLIENT]
 
 
@@ -60,7 +65,7 @@ def test_fp_o03_the_app_works_the_same_with_telemetry_off(client: TestClient) ->
     """The ordinary test app builds with no ``OTEL_*`` in its environment
     (``tests/conftest.py``'s ``client`` fixture): ``app.state.telemetry`` is
     ``None`` and every route still serves (O03)."""
-    assert client.app.state.telemetry is None
+    assert cast(FastAPI, client.app).state.telemetry is None
     sign_in(client)
     assert client.get("/").status_code == 200
     assert client.get("/health").status_code == 200
@@ -96,6 +101,8 @@ def test_fp_o03_an_absent_collector_logs_quietly_never_fatally(
             time.sleep(2)
     finally:
         telemetry.shutdown(built)  # forces a final export attempt against the closed port
+        telemetry.uninstrument_engine()
+        app.state.engine.dispose()
         app.state.engine.dispose()
 
     noisy = [
@@ -135,20 +142,25 @@ def test_fp_o04_a_request_and_a_query_are_recorded_in_memory(
             assert home.status_code == 200
     finally:
         telemetry.shutdown(built)
+        telemetry.uninstrument_engine()
+        app.state.engine.dispose()
         app.state.engine.dispose()
 
     metrics_data = metric_reader.get_metrics_data()
     points = _histogram_points(metrics_data, telemetry.HTTP_SERVER_REQUEST_DURATION)
     assert points, "no http.server.request.duration histogram point was recorded"
 
-    ticket_points = [p for p in points if p.attributes.get("http.route") == "/ticket/{ticket_id}"]
+    ticket_points = [
+        p for p in points if (p.attributes or {}).get("http.route") == "/ticket/{ticket_id}"
+    ]
     assert ticket_points, [p.attributes for p in points]
     point = ticket_points[0]
-    assert point.attributes["http.request.method"] == "GET"
-    assert point.attributes["http.response.status_code"] == 404
+    attributes = dict(point.attributes or {})
+    assert attributes["http.request.method"] == "GET"
+    assert attributes["http.response.status_code"] == 404
     # Only the kept attributes (plan §6): never the raw id, and none of the
     # stable set's error.type / network.protocol.version / url.scheme.
-    assert set(point.attributes) == {
+    assert set(attributes) == {
         "http.request.method",
         "http.response.status_code",
         "http.route",

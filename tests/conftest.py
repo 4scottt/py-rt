@@ -99,9 +99,16 @@ def client(db: Session, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]
     monkeypatch.setenv("BASE_URL", "http://testserver")
     monkeypatch.setenv("SESSION_SECRET", "test")
     monkeypatch.setenv("SITE_NAME", "test")
-    app = create_app()
+    app = create_app(telemetry=None)  # the suite never builds real telemetry
     try:
         with TestClient(app) as test_client:
             yield test_client
     finally:
         app.state.engine.dispose()
+
+
+@pytest.fixture(autouse=True)
+def _no_ambient_otel(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An exported OTEL_EXPORTER_OTLP_ENDPOINT on the machine must not turn
+    the suite's apps into exporters (O03 tests set their own)."""
+    monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)

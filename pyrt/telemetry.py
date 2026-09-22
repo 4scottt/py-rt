@@ -55,10 +55,10 @@ _KEPT_HTTP_ATTRS: Final = frozenset(
 #: that way), so every attempt and the final give-up both ``_logger.warning``
 #: or ``.error`` — and ``BatchSpanProcessor``/``PeriodicExportingMetricReader``
 #: warn on their own retries too. The plan: "logged at debug, never fatal";
-#: since none of these call sites can be told to log at DEBUG instead, these
-#: four logger names are raised above the JSON log's INFO threshold instead,
-#: so a deploy's ~30s gap before the sidecar answers stays quiet. A developer
-#: who wants to see them can lower any of these four names back down by hand.
+#: since none of these call sites can be told to log at DEBUG instead, a
+#: filter on these four logger names demotes their records to DEBUG, so a
+#: deploy's ~30s gap before the sidecar answers stays quiet at INFO and a
+#: wrong endpoint still shows under ``--log-level debug``.
 _QUIET_LOGGERS: Final = (
     "opentelemetry.exporter.otlp.proto.http.trace_exporter",
     "opentelemetry.exporter.otlp.proto.http.metric_exporter",
@@ -91,10 +91,27 @@ class Telemetry:
     meter_provider: MeterProvider
 
 
+class _DemoteToDebug(logging.Filter):
+    """The plan's "logged at debug": the SDK's call sites cannot be told to
+    log lower, so their records are rewritten to DEBUG on the way out. They
+    still show under ``--log-level debug`` (a wrong endpoint is then
+    visible), and never at INFO or above."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.levelno > logging.DEBUG:
+            record.levelno, record.levelname = logging.DEBUG, "DEBUG"
+        return True
+
+
+_DEMOTER: Final = _DemoteToDebug()
+
+
 def _quiet_exporter_loggers() -> None:
-    """Raise the four names in :data:`_QUIET_LOGGERS` above INFO."""
+    """Demote the four names in :data:`_QUIET_LOGGERS` to DEBUG."""
     for name in _QUIET_LOGGERS:
-        logging.getLogger(name).setLevel(logging.CRITICAL)
+        logger = logging.getLogger(name)
+        if _DEMOTER not in logger.filters:
+            logger.addFilter(_DEMOTER)
 
 
 def configure(
@@ -119,9 +136,10 @@ def configure(
     if not endpoint and metric_readers is None and span_exporter is None:
         return None
 
-    # opentelemetry-instrumentation-fastapi reads OTEL_SEMCONV_STABILITY_OPT_IN
-    # at *import* time (module-level state in ..._semconv), so this must be
-    # set before that import — every time, here, not by the card.
+    # The instrumentations read OTEL_SEMCONV_STABILITY_OPT_IN lazily, once
+    # per process, on the first .instrument() call (a one-shot in
+    # opentelemetry.instrumentation._semconv), so it must be set before that
+    # first call — every time, here, not by the card.
     os.environ["OTEL_SEMCONV_STABILITY_OPT_IN"] = "http"
 
     from opentelemetry.exporter.otlp.proto.http.metric_exporter import (
@@ -182,7 +200,7 @@ def instrument_app(app: FastAPI, telemetry: Telemetry) -> None:
 
     FastAPIInstrumentor.instrument_app(
         app,
-        excluded_urls="health",
+        excluded_urls=r"^https?://[^/]+/health$",
         tracer_provider=telemetry.tracer_provider,
         meter_provider=telemetry.meter_provider,
     )
@@ -191,6 +209,12 @@ def instrument_app(app: FastAPI, telemetry: Telemetry) -> None:
 def instrument_engine(engine: Engine, telemetry: Telemetry) -> None:
     """One client span per query; the sqlcommenter stays off (the
     instrumentation's own default, unchanged here).
+
+    The instrumentor wraps the engine given *and* patches SQLAlchemy's
+    engine constructors and ``Engine.connect`` process-wide, and its
+    ``uninstrument`` strips the listeners from every engine instrumented so
+    far: two apps in one process cannot each keep their own (the serve path
+    builds one app per worker process, so it never meets this).
 
     ``SQLAlchemyInstrumentor`` is a process-wide singleton
     (``BaseInstrumentor.__new__`` always returns the same instance): once
@@ -213,3 +237,12 @@ def shutdown(telemetry: Telemetry) -> None:
     """Flush and stop both providers so no export thread is left running."""
     telemetry.tracer_provider.shutdown()
     telemetry.meter_provider.shutdown()
+
+
+def uninstrument_engine() -> None:
+    """Undo :func:`instrument_engine` for the process (tests)."""
+    from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
+    instrumentor = SQLAlchemyInstrumentor()
+    if instrumentor.is_instrumented_by_opentelemetry:
+        instrumentor.uninstrument()

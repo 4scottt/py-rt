@@ -62,7 +62,7 @@ have no default — the app refuses to serve without them.
 | `BASE_URL` | Absolute base for every link, redirect and mail; never derived from `Host` |
 | `SITE_NAME` | The name in the subject tag `[<SITE_NAME> #<id>]` and the page title |
 | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | The MariaDB connection |
-| `DATABASE_URL` | Overrides the `DB_*` pair with a full SQLAlchemy DSN (tests and local runs) |
+| `DATABASE_URL` | Overrides the five `DB_*` variables with a full SQLAlchemy DSN (tests and local runs) |
 | `ROOT_PASSWORD` | Seeds the `root` user on the first start, when no users exist; ignored after |
 | `SESSION_SECRET` | The signing key of the session cookie; the app refuses to serve without it |
 | `MAIL_MODE` | `log` (default: every message as a JSON log line), `file` (append to `MAIL_FILE`), or `smtp` (only when set explicitly) |
@@ -70,7 +70,7 @@ have no default — the app refuses to serve without them.
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | The relay for `MAIL_MODE=smtp`; ignored otherwise |
 | `TZ` | Display zone, default UTC; stored times are UTC |
 | `WORKERS` | uvicorn workers, default 2 |
-| `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`, `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_METRIC_EXPORT_INTERVAL` | Standard OpenTelemetry SDK variables; unset, telemetry is a no-op |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`, `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_METRIC_EXPORT_INTERVAL` | Standard OpenTelemetry SDK variables; unset, telemetry is a no-op. The protocol variable is accepted but not read: the exporter is always OTLP over HTTP with protobuf |
 
 ## Docker
 
@@ -156,10 +156,10 @@ ticket link in the autoreply is empty without the first.
 
 ## Telemetry
 
-A no-op without any `OTEL_*` variable set — no exporter is created, and
+A no-op unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set — no exporter is created, and
 nothing is sent. With `OTEL_EXPORTER_OTLP_ENDPOINT` set, the app exports
 over OTLP http/protobuf: an `http.server.request.duration` histogram in
-seconds, carrying `http.route` (the templated path, e.g. `/ticket/{id}`,
+seconds, carrying `http.route` (the templated path, e.g. `/ticket/{ticket_id}`,
 never an id), `http.request.method` and `http.response.status_code`; and
 traces, with one server span per request and one client span per database
 query, so a request's time in the database reads the same way on every
