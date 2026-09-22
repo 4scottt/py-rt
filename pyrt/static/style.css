@@ -260,3 +260,10 @@ form.modify .row.check label { margin: 0; }
 #history .transaction-body { margin: 0.35rem 0 0; }
 #history .transaction-body p { margin: 0 0 0.5rem; }
 #history .hidden { color: var(--muted); font-style: italic; }
+
+/* the rights pages (M3): a principal's rights as a wrapped grid of
+   checkboxes, RT-compact, instead of one row per right */
+.rights-principal { margin: 0 0 0.75rem; }
+.rights-principal-name { margin: 0.25rem 0; font-size: 1em; }
+.rights-grid { display: flex; flex-wrap: wrap; gap: 0.15rem 1.25rem; }
+.rights-grid .row.check { flex: 0 0 auto; margin: 0; }

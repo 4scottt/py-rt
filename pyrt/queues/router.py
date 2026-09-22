@@ -38,6 +38,8 @@ ADMIN_SECTIONS: Final[tuple[tuple[str, str], ...]] = (
     ("Users", "/admin/users"),
     ("Groups", "/admin/groups"),
     ("Custom Fields", "/admin/custom-fields"),
+    ("Global Group Rights", "/admin/global/group-rights"),
+    ("Global User Rights", "/admin/global/user-rights"),
 )
 
 #: What ``?msg=`` may say after a redirect; anything else is ignored.

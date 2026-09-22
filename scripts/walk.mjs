@@ -31,7 +31,7 @@ function loadPlaywright() {
 const { chromium } = loadPlaywright();
 
 const WRITTEN = 12; // the highest step written so far; raise it as milestones land
-const UNWRITTEN = new Set([6, 7, 10, 11]); // steps whose milestone has not landed: skipped
+const UNWRITTEN = new Set([6, 7, 11]); // steps whose milestone has not landed: skipped
 const run = (n) => steps >= n && !UNWRITTEN.has(n);
 const url = (process.env.WALK_URL || "http://localhost:8082").replace(/\/$/, "");
 const rootPassword = process.env.ROOT_PASSWORD || "password";
@@ -177,7 +177,34 @@ try {
     note(`group "${group}" holds ${tech}`);
   }
 
-  // 10–11: rights, mail — with M3 and M5
+  // 10. rights: on the Support queue's Group Rights page grant the group
+  //     OwnTicket and ShowTicket; on General's grant Everyone CreateTicket
+  //     and ReplyToTicket (the mail goal's first subtask)
+  if (run(10)) {
+    console.log("10. group rights on two queues");
+    await page.goto(`${url}/admin/queues`);
+    await page.click(`table.collection a:has-text("${queue}")`);
+    await expectText(page, "Modify a queue", "the queue page");
+    await page.click('ul.page-tabs a:has-text("Group Rights")');
+    await expectText(page, "Group Rights", "the group rights page");
+    await page.check(`input[name="${group}-OwnTicket"]`);
+    await page.check(`input[name="${group}-ShowTicket"]`);
+    await page.click('button:has-text("Save Changes")');
+    await expectText(page, "Rights updated", "after saving Support's rights");
+    for (const n of [`${group}-OwnTicket`, `${group}-ShowTicket`]) {
+      if (!(await page.isChecked(`input[name="${n}"]`))) throw new Error(`rights: ${n} did not stay checked`);
+    }
+    await page.goto(`${url}/admin/queues`);
+    await page.click('table.collection a:has-text("General")');
+    await page.click('ul.page-tabs a:has-text("Group Rights")');
+    await page.check('input[name="Everyone-CreateTicket"]');
+    await page.check('input[name="Everyone-ReplyToTicket"]');
+    await page.click('button:has-text("Save Changes")');
+    await expectText(page, "Rights updated", "after saving General's rights");
+    note(`${group}: OwnTicket, ShowTicket on ${queue}; Everyone: CreateTicket, ReplyToTicket on General`);
+  }
+
+  // 11. mail — with M5
 
   // 12. resolve the ticket, last in the workload
   if (run(12)) {
