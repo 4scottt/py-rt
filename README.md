@@ -11,6 +11,10 @@ the same scripted workload, for the [oldbox](https://oldbox.io)
 side-by-side comparison. Apache-2.0; see `NOTICE` for what "clean
 room" means here.
 
+py-rt is not affiliated with or endorsed by Best Practical Solutions,
+LLC. "Request Tracker" and "RT" are their trademarks, named here only
+to say what this program is modelled on.
+
 ## Features
 
 - Queues, with a subject tag and correspond/comment addresses

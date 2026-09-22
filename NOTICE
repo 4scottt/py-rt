@@ -28,3 +28,8 @@ of Request Tracker is reproduced here**: not its Perl code, its Mason
 templates, its stylesheets, scripts or images, its seed data, nor its
 documentation. Request Tracker was read as a specification of behaviour
 and every line of this repository was written fresh.
+
+py-rt is not affiliated with, sponsored by or endorsed by Best Practical
+Solutions, LLC. "Request Tracker", "RT" and "Best Practical" are their
+trademarks and are used here only to name the product this one is
+modelled on.
