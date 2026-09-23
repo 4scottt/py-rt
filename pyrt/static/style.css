@@ -81,13 +81,18 @@ a:hover, a:focus { color: var(--blue-dark); text-decoration: underline; }
   padding: 0.45rem 0.75rem;
   color: #fff;
   font-weight: 500;
-  cursor: default;
+  cursor: pointer;
 }
+/* a menu's label is a link to its section; the one left a label (New ticket
+   in, for someone who may create in no queue) only opens its menu */
+#nav span.menu-label { cursor: default; }
 #nav > li > a:hover, #nav > li:hover > .menu-label, #nav > li:focus-within > .menu-label {
   background: var(--blue-dark);
   text-decoration: none;
 }
-#nav .menu > .menu-label::after { content: " \25B8"; font-size: 0.8em; }
+/* the arrow is decoration: the empty alternative keeps it out of the link's
+   name ("Admin", not "Admin ▸"); a browser without the syntax keeps the first */
+#nav .menu > .menu-label::after { content: " \25B8"; content: " \25B8" / ""; font-size: 0.8em; }
 
 #nav .submenu {
   display: none;

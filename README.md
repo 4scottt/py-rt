@@ -158,6 +158,51 @@ beside the body.
 `pyrt serve` it does not ask for `BASE_URL` or `SESSION_SECRET`, though a
 ticket link in the autoreply is empty without the first.
 
+## Fixture data
+
+A comparison measured on an empty database measures the templates, not the
+queries. `pyrt seed --fixture` loads a fixture dataset instead, the same
+file every side of a comparison loads through its own product's API:
+
+    docker exec -i py-rt pyrt --log-level warning seed --fixture - < dataset.json
+
+`-` reads the file from standard input; a path works too. The command
+migrates and seeds as `pyrt seed` does, then writes the dataset through the
+same service functions the pages call (users, queues, groups and their
+members, custom fields and the queues they apply to, rights, then each
+ticket and its replies, comments, status changes and field values), so a
+loaded ticket is one the app itself could have written. The dataset's own
+times are stamped on each ticket and on every transaction it wrote, and
+the notification hooks are silenced for the load, so it mails nobody.
+
+The file (schema 1; `tests/fixture-sample.json` is a small example) names
+everything by name. Its tickets are numbered 1..N and the database must
+agree, so **only an empty side is loaded**: a database with any ticket, or
+with a queue, user, group or custom field the file would create, is refused
+before anything is written, and exits 1. A load that fails after writing
+says so; reset the side (a fresh database) and load again.
+
+On success standard output carries one line and nothing else (the log goes
+to standard error). For the sample file, on a fresh database:
+
+    fixture v1 seed=20260922 dataset=c99ed161a129 queues=3 users=4 groups=2 members=3 rights=27 custom_fields=2 applied=2 tickets=6 create=6 correspond=5 comment=4 status=8 custom_field=3 last_ticket=6
+
+`dataset` is the first twelve hex digits of the sha256 of the file's bytes,
+so the line names the exact file loaded. Every other count is verified in
+the database, not echoed from the file: each object by name, each grant as
+its row, tickets 1..N with their subject, queue, final status, owner,
+requestor and field values, and the `Create`, `Correspond`, `Comment` and
+`CustomField` transactions on those tickets counted against the file's
+steps. `status` is the file's count of status steps, proven by the final
+statuses (a reply that opens a `new` ticket writes a status row of its
+own). `last_ticket` is the highest ticket id on the side.
+
+`--check` runs that verification alone and writes nothing: the same line
+when the dataset is there (with a higher `last_ticket` once more tickets
+have been written since), or `fixture absent: <what is missing>` on
+standard error and exit 1. A file this command cannot read or does not
+understand exits 2 without touching the database.
+
 ## Telemetry
 
 A no-op unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set — no exporter is created, and
@@ -208,7 +253,7 @@ gate instead of the app directly), and `PLAYWRIGHT_DIR` (where the
       auth.py            # bcrypt and the signed session cookie
       telemetry.py       # OpenTelemetry: metrics and traces, a no-op when unset
       logging.py         # JSON lines to stdout
-      db/                # the SQLAlchemy engine, models, Alembic migrations, the seed
+      db/                # the SQLAlchemy engine, models, Alembic migrations, the seed, the fixture loader
       queues/            # /admin/queues/*
       users/             # /admin/users/*
       groups/            # /admin/groups/*

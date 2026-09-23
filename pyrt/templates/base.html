@@ -26,9 +26,17 @@
 <ul id="nav">
   <li><a href="{{ url('/') }}">Home</a></li>
   <li><a href="{{ url('/search') }}">Search</a></li>
-  <li class="menu"><span class="menu-label">Tickets</span>
+  {# A menu's own entry is a link to its section (a click, a keyboard); a
+     hover or a focus inside opens the submenu. New ticket in stays a label
+     for someone who may create in no queue: the create form would be 403. #}
+  <li class="menu"><a class="menu-label" href="{{ url('/search') }}">Tickets</a>
     <ul class="submenu">
-      <li class="menu"><span class="menu-label">New ticket in</span>
+      <li class="menu">
+        {% if nav_queues %}
+        <a class="menu-label" href="{{ url('/ticket/new') }}">New ticket in</a>
+        {% else %}
+        <span class="menu-label">New ticket in</span>
+        {% endif %}
         <ul class="submenu">
           {% block nav_queues %}
           {% for queue in nav_queues %}
@@ -41,7 +49,7 @@
     </ul>
   </li>
   {% if show_admin %}
-  <li class="menu"><span class="menu-label">Admin</span>
+  <li class="menu"><a class="menu-label" href="{{ url('/admin/') }}">Admin</a>
     <ul class="submenu">
       <li><a href="{{ url('/admin/queues') }}">Queues</a></li>
       <li><a href="{{ url('/admin/users') }}">Users</a></li>

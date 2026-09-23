@@ -62,7 +62,7 @@ def ids_claimed_by_tests() -> dict[str, list[str]]:
 
 def test_matrix_parses() -> None:
     ids = matrix_ids()
-    assert len(ids) == 70, f"expected the 70 function points of plan §9, read {len(ids)}"
+    assert len(ids) == 71, f"expected the 71 function points of plan §9, read {len(ids)}"
     assert len(set(ids)) == len(ids), "a function-point id appears twice"
 
 

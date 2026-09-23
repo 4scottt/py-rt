@@ -258,6 +258,42 @@ def test_a_page_renders_every_id_once_and_every_label_reaches_its_control(
             assert control is not None, (path, target)
 
 
+#: The nav's menus and the section each one's own entry links to.
+NAV_MENUS = (
+    ("Tickets", "/search"),
+    ("New ticket in", "/ticket/new"),
+    ("Admin", "/admin/"),
+)
+
+
+def test_the_nav_menus_are_links_to_their_sections(client: TestClient, db: Session) -> None:
+    """Tickets, New ticket in and Admin are links, not hover labels.
+
+    Request Tracker's menu entries are links, so a browser told to click
+    Admin (the platform's Pilot, a keyboard) needs something to press; a
+    hover opens the submenu as before. Each link lands on its section, and
+    the page still renders every id once. For someone who may create in no
+    queue, New ticket in stays a label: the create form is 403 for them.
+    """
+    sign_in(client)
+    page = client.get("/")
+    for label, path in NAV_MENUS:
+        assert f'<a class="menu-label" href="http://testserver{path}">{label}</a>' in page.text
+        assert client.get(path).status_code == 200, path
+    assert '<span class="menu-label">' not in page.text
+    ids = re.findall(r'\sid="([^"]+)"', page.text)
+    assert len(ids) == len(set(ids)), ids
+
+    make_user(db, "agent", "agent-password", privileged=True)
+    client.cookies.clear()
+    sign_in(client, "agent", "agent-password")
+    bare = client.get("/")
+    assert '<a class="menu-label" href="http://testserver/search">Tickets</a>' in bare.text
+    assert '<span class="menu-label">New ticket in</span>' in bare.text
+    assert 'href="http://testserver/ticket/new"' not in bare.text
+    assert client.get("/ticket/new").status_code == 403
+
+
 def test_fp_o02_health_needs_nothing_writes_nothing_and_reports_the_database(
     client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:

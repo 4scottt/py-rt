@@ -1,0 +1,40 @@
+{
+  "clock": "2026-01-01T00:00:00Z",
+  "custom_fields": [
+    {"applies_to":["Accounts"],"description":"The account a ticket is about","name":"Account number"},
+    {"applies_to":["Premises"],"description":"Floor and room, like 2.14","name":"Room"}
+  ],
+  "groups": [
+    {"description":"Answer and own every queue","members":["akim","blee"],"name":"Agents"},
+    {"description":"Read every queue","members":["blee"],"name":"Auditors"}
+  ],
+  "queues": [
+    {"existing":true,"name":"General"},
+    {"description":"Invoices, refunds and payments","name":"Accounts","subject_tag":"ACCT"},
+    {"description":"The building and its rooms","name":"Premises","subject_tag":null}
+  ],
+  "rights": [
+    {"kind":"group","principal":"Agents","queue":"Accounts","rights":["SeeQueue","ShowTicket","CreateTicket","ReplyToTicket","CommentOnTicket","OwnTicket","ModifyTicket","SeeCustomField","ModifyCustomField"]},
+    {"kind":"group","principal":"Agents","queue":"Premises","rights":["SeeQueue","ShowTicket","CreateTicket","ReplyToTicket","CommentOnTicket","OwnTicket","ModifyTicket","SeeCustomField","ModifyCustomField"]},
+    {"kind":"group","principal":"Agents","queue":"General","rights":["SeeQueue","ShowTicket","OwnTicket","ModifyTicket","ReplyToTicket","CommentOnTicket"]},
+    {"kind":"group","principal":"Auditors","queue":null,"rights":["SeeQueue","ShowTicket"]},
+    {"kind":"user","principal":"akim","queue":"Accounts","rights":["AdminQueue"]}
+  ],
+  "schema": 1,
+  "seed": 20260922,
+  "tickets": [
+    {"content":"My badge stops opening the side door after lunch.","created":"2025-02-03T09:15:27Z","creator":"cy@home.example","id":1,"owner":null,"queue":"General","requestor":"cy@home.example","steps":[{"actor":"blee","at":"2025-02-03T10:02:41Z","content":"Asked the front desk to check the badge log.","type":"comment"}],"subject":"Door badge stops working after lunch"},
+    {"content":"The March invoice charges us twice for the same order.","created":"2025-03-10T14:02:05Z","creator":"akim","id":2,"owner":"akim","queue":"Accounts","requestor":"di@home.example","steps":[{"actor":"akim","at":"2025-03-10T14:20:13Z","status":"open","type":"status"},{"actor":"akim","at":"2025-03-10T15:45:00Z","field":"Account number","type":"custom_field","value":"ACC-2025-0041"},{"actor":"di@home.example","at":"2025-03-11T08:03:59Z","content":"The order number is on the second page.","type":"correspond"},{"actor":"akim","at":"2025-03-11T09:30:30Z","field":"Account number","type":"custom_field","value":"ACC-2025-0042"},{"actor":"blee","at":"2025-03-12T16:10:07Z","content":"Refund approved; waiting on the bank.","type":"comment"}],"subject":"Charged twice on the March invoice"},
+    {"content":"The heating in room 2.14 has been off since Monday.","created":"2025-04-22T08:30:45Z","creator":"cy@home.example","id":3,"owner":"blee","queue":"Premises","requestor":"cy@home.example","steps":[{"actor":"blee","at":"2025-04-22T08:45:12Z","status":"open","type":"status"},{"actor":"blee","at":"2025-04-22T11:05:33Z","content":"An engineer is booked for Thursday morning.","type":"correspond"},{"actor":"blee","at":"2025-04-22T11:06:02Z","field":"Room","type":"custom_field","value":"2.14"},{"actor":"blee","at":"2025-04-23T09:00:00Z","status":"stalled","type":"status"}],"subject":"No heating in room 2.14"},
+    {"content":"Please send a copy of the paid receipt for our records.","created":"2025-06-01T11:11:11Z","creator":"cy@home.example","id":4,"owner":"akim","queue":"Accounts","requestor":"cy@home.example","steps":[{"actor":"akim","at":"2025-06-01T11:20:31Z","status":"open","type":"status"},{"actor":"akim","at":"2025-06-02T09:14:58Z","content":"The receipt is attached to this reply.","type":"correspond"},{"actor":"akim","at":"2025-06-02T09:15:03Z","status":"resolved","type":"status"}],"subject":"A copy of the paid receipt"},
+    {"content":"Could the car park open an hour earlier on Fridays?","created":"2025-07-15T16:45:09Z","creator":"di@home.example","id":5,"owner":null,"queue":"Premises","requestor":"di@home.example","steps":[{"actor":"blee","at":"2025-07-15T17:30:20Z","content":"Opening hours are set by the landlord, not by us.","type":"comment"},{"actor":"blee","at":"2025-07-16T08:02:44Z","status":"rejected","type":"status"}],"subject":"Open the car park earlier on Fridays"},
+    {"content":"The meeting room screen shows no picture from any laptop.","created":"2025-09-30T23:59:58Z","creator":"blee","id":6,"owner":"blee","queue":"General","requestor":"di@home.example","steps":[{"actor":"blee","at":"2025-10-01T00:00:07Z","status":"open","type":"status"},{"actor":"di@home.example","at":"2025-10-01T08:12:19Z","content":"It worked last week with the same cable.","type":"correspond"},{"actor":"akim","at":"2025-10-01T08:40:00Z","content":"The adapter in the drawer is the wrong kind.","type":"comment"},{"actor":"blee","at":"2025-10-01T09:05:26Z","content":"A new adapter is in the room now.","type":"correspond"},{"actor":"blee","at":"2025-10-01T09:05:59Z","status":"resolved","type":"status"}],"subject":"Meeting room screen shows no picture"}
+  ],
+  "users": [
+    {"email":"akim@sample.example","name":"akim","privileged":true,"real_name":"Ari Kim"},
+    {"email":"blee@sample.example","name":"blee","privileged":true,"real_name":"Bo Lee"},
+    {"email":"cy@home.example","name":"cy@home.example","privileged":false,"real_name":"Cy Moss"},
+    {"email":"di@home.example","name":"di@home.example","privileged":false,"real_name":"Di Park"}
+  ],
+  "window_start": "2025-01-01T00:00:00Z"
+}

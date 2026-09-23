@@ -45,8 +45,9 @@ from tests.test_tickets import (
 AGENT: str = "agent"
 AGENT_PASSWORD: str = "agent-password"
 
-#: The Admin menu of plan §11's shell, behind ``ShowConfigTab``.
-ADMIN_MENU = '<span class="menu-label">Admin</span>'
+#: The Admin menu of plan §11's shell, behind ``ShowConfigTab``: its label is
+#: a link to the admin index.
+ADMIN_MENU = '<a class="menu-label" href="http://testserver/admin/">Admin</a>'
 
 #: The shell's own words, so a 403 can be told from a bare error body.
 SHELL_MARK = "RT for test"

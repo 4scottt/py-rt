@@ -3,7 +3,8 @@
 ``serve`` is the image's default command and does the startup of plan §6:
 migrate, seed, listen. ``mailgate`` is the mail gateway of FP M01: one
 message on standard input, a ticket or a reply out of it, and the two-line
-protocol the platform's exercise body reads.
+protocol the platform's exercise body reads. ``seed --fixture`` is FP O09:
+a fixture dataset loaded through the services, and its one checksum line.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ import sys
 import urllib.error
 import urllib.request
 from collections.abc import Sequence
+from pathlib import Path
 from typing import BinaryIO
 
 from pyrt import __version__
@@ -49,7 +51,19 @@ def _parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("migrate", help="upgrade the database to the latest revision")
-    sub.add_parser("seed", help="migrate, then seed a fresh database")
+    # FP O09: ``--fixture`` loads a dataset after the seed and prints its
+    # checksum line; ``--check`` only verifies a loaded one, writing nothing.
+    seed = sub.add_parser("seed", help="migrate, then seed a fresh database")
+    seed.add_argument(
+        "--fixture",
+        metavar="PATH|-",
+        help="then load this fixture dataset (- reads standard input); print its checksum line",
+    )
+    seed.add_argument(
+        "--check",
+        action="store_true",
+        help="with --fixture: verify the database holds the dataset, print the line; write nothing",
+    )
     sub.add_parser("serve", help="migrate, seed and serve")
     sub.add_parser("healthcheck", help="GET /health on the local port; exit 0 when it is 200")
 
@@ -162,13 +176,64 @@ def _mailgate(
     return 0
 
 
+def _seed_fixture(
+    settings: Settings, source: str, *, check: bool, stdin: BinaryIO | None = None
+) -> int:
+    """FP O09: load a fixture dataset (or, with ``check``, look for it); print its line.
+
+    Standard output carries the checksum line and nothing else, so the log
+    moves to standard error first. A failure is one line there and a
+    non-zero exit: 2 for a file this command cannot read or does not
+    understand (the database untouched), 1 for a side it will not load or
+    does not find the dataset on. A load migrates and seeds first, as
+    ``seed`` always does, so it works on a database nothing has started on
+    yet; ``--check`` only reads. The loader writes no file.
+    """
+    from pyrt.db import fixture
+
+    _logs_to_stderr()
+    try:
+        raw = (stdin or sys.stdin.buffer).read() if source == "-" else Path(source).read_bytes()
+    except OSError as exc:
+        print(f"fixture: cannot read {source}: {exc.strerror or exc}", file=sys.stderr)
+        return 2
+
+    try:
+        fixture.parse(raw)  # a file it cannot understand never reaches the database
+        if not check:
+            _migrate(settings)
+            _seed(settings)
+        engine = make_engine(settings.database_url())
+        try:
+            with session_scope(make_session_factory(engine)) as session:
+                if check:
+                    text = fixture.check(session, raw)
+                else:
+                    text = fixture.load(session, settings, raw)
+        finally:
+            engine.dispose()
+    except fixture.FixtureError as exc:
+        print(exc.report(), file=sys.stderr)
+        return exc.exit_code
+    except Exception as exc:  # the database, most likely: one line, the trace in the log
+        log.error("fixture failed", exc_info=True)
+        print(f"fixture: {fixture.summary(exc)}", file=sys.stderr)
+        return 1
+    print(text)
+    return 0
+
+
 def main(argv: Sequence[str] | None = None, stdin: BinaryIO | None = None) -> int:
     """Entry point; the console script exits with what this returns.
 
-    ``stdin`` is the gateway's message; it defaults to the process's own
-    standard input and is a parameter so a test can hand one in.
+    ``stdin`` is the gateway's message, or ``seed --fixture -``'s dataset; it
+    defaults to the process's own standard input and is a parameter so a
+    test can hand one in.
     """
     args = _parser().parse_args(argv)
+    if args.command == "seed" and args.check and args.fixture is None:
+        print("pyrt seed: --check needs --fixture", file=sys.stderr)
+        return 2
     pyrt_logging.configure(args.log_level)
 
     try:
@@ -196,6 +261,8 @@ def main(argv: Sequence[str] | None = None, stdin: BinaryIO | None = None) -> in
         return 0
 
     if args.command == "seed":
+        if args.fixture is not None:
+            return _seed_fixture(settings, args.fixture, check=args.check, stdin=stdin)
         _migrate(settings)
         seeded = _seed(settings)
         log.info("seed", extra={"seeded": seeded})

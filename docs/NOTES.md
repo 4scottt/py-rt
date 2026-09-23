@@ -114,6 +114,15 @@ What is out, and why:
 - **The gateway as a CLI on the database, not an HTTP endpoint.** The
   mail gateway runs as a command against the database directly; there
   is no unauthenticated network endpoint for mail delivery.
+- **Fixture data through the services, not SQL.** `pyrt seed --fixture`
+  loads a comparison's dataset by calling the service functions the
+  pages call, never by inserting rows, so a loaded ticket is one the app
+  could have written; only the dates are then set to the file's. The
+  notification hooks are silenced while it runs, because a load is not a
+  person acting and a few hundred tickets must not mail their
+  requestors. It loads only an empty side, because the file numbers its
+  tickets and the checksum line two loaders print for one file agrees
+  only when each side's ids come out as the file's.
 - **Selects, not autocompletes.** Owner and group-member fields are
   `<select>` elements; a requestor is a plain email field. No control
   depends on an autocomplete-only widget.

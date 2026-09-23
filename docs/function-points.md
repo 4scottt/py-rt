@@ -127,5 +127,6 @@ golden HTML.
 | O06 | Refuses to serve without `SESSION_SECRET` or `BASE_URL`, with a one-line reason (the card's signatures) | u |
 | O07 | Image builds for linux/amd64 and linux/arm64, runs as non-root, `/var/lib/py-rt` writable, under 250 MB; the footprint job records the size and the RSS after the walk | CI |
 | O08 | The acceptance walk (§13) passes with zero console errors, zero page errors, zero ≥400 own-origin sub-resources | w |
+| O09 | `pyrt seed --fixture <path\|->` loads the platform's fixture dataset (schema v1) through the services on an empty tickets table only, hooks silenced, dates from the file, ids deterministic, one checksum line; `--check` verifies without writing | h |
 
-Seventy function points: L5 Q6 T14 S5 F7 U8 R9 M8 O8.
+Seventy-one function points: L5 Q6 T14 S5 F7 U8 R9 M8 O9.
